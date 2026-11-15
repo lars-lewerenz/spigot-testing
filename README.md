@@ -101,7 +101,7 @@ spigotTesting {
     versions = listOf("1.8.8", "1.21.11")       // required for server tests
     pluginJar = tasks.shadowJar.flatMap { it.archiveFile } // default: the jar task's output
     jvmArgs = listOf("-Xmx2G")                  // default
-    timeout = Duration.ofMinutes(10)            // per server run, default 10 minutes
+    timeout = java.time.Duration.ofMinutes(10)  // per server run, default 10 minutes
     acceptEula = true                           // default: Gradle property spigotTesting.acceptEula
     cacheDirectory = layout.projectDirectory.dir(".spigot") // default: ~/.gradle/caches/spigot-testing
 }

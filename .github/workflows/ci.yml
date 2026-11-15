@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build framework and example, run unit tests
+        run: ./gradlew :example-plugin:test :example-plugin:serverTestHarnessJar
+      - name: Upload unit test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: example-plugin/build/reports/tests/
+
+  server-test:
+    name: Server tests (Spigot ${{ matrix.version }})
+    needs: build
+    # Running a Minecraft server requires accepting the Minecraft EULA
+    # (https://aka.ms/MinecraftEULA). Server tests run only once the repository
+    # variable ACCEPT_MINECRAFT_EULA is set to "true".
+    if: vars.ACCEPT_MINECRAFT_EULA == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in sync with spigotTesting.versions in example-plugin/build.gradle.kts.
+        version: ["1.8.8", "1.12.2", "1.20.4", "1.21.11", "26.3"]
+    env:
+      SPIGOT_CACHE: ~/.gradle/caches/spigot-testing
+      # Lets Gradle's toolchains use the JDKs installed below instead of downloading them.
+      JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          # The JDKs the Spigot versions need. The last one runs Gradle.
+          java-version: |
+            8
+            17
+            25
+            21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Task name
+        id: task
+        run: echo "id=${VERSION//./_}" >> "$GITHUB_OUTPUT"
+        env:
+          VERSION: ${{ matrix.version }}
+
+      # Building Spigot with BuildTools takes several minutes, so the jar is cached.
+      # Bump the "v1" to force a rebuild (e.g. to pick up new Spigot builds).
+      - name: Restore Spigot ${{ matrix.version }}
+        id: spigot-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
+            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
+          key: spigot-${{ matrix.version }}-v1
+      - name: Build Spigot ${{ matrix.version }}
+        if: steps.spigot-cache.outputs.cache-hit != 'true'
+        run: ./gradlew :example-plugin:buildSpigot_${{ steps.task.outputs.id }} ${{ env.JDKS }}
+      - name: Save Spigot ${{ matrix.version }}
+        if: steps.spigot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
+            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
+          key: spigot-${{ matrix.version }}-v1
+
+      - name: Run server tests
+        run: ./gradlew :example-plugin:serverTest_${{ steps.task.outputs.id }} -PspigotTesting.acceptEula=true ${{ env.JDKS }}
+      - name: Upload server logs and reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-test-results-${{ matrix.version }}
+          path: example-plugin/build/spigot-testing/${{ matrix.version }}/results/
