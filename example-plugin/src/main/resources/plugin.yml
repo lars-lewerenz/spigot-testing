@@ -1,0 +1,9 @@
+name: Greeter
+version: '1.0.0'
+main: io.github.larslewerenz.greeter.GreeterPlugin
+api-version: '1.13'
+description: Example plugin for spigot-testing
+commands:
+  greet:
+    description: Greets someone
+    usage: /<command> <name>

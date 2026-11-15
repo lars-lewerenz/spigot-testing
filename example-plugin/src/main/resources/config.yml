@@ -1,0 +1,6 @@
+# Message for /greet <name>. '&' starts a color code, %name% is replaced by the name.
+greeting: '&aHello, %name%!'
+# Cancel every creeper spawn.
+block-creepers: true
+# Skip the night: set the time back to morning whenever it gets dark.
+lock-day: true
