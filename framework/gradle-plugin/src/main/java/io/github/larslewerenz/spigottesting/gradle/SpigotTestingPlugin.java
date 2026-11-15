@@ -17,6 +17,7 @@ import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.DuplicatesStrategy;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.RegularFile;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -86,15 +87,21 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
         TaskProvider<Task> allServerTests = project.getTasks().register("serverTest", task -> {
             task.setGroup(GROUP);
-            task.setDescription("Runs the server tests on every configured Spigot version.");
+            task.setDescription("Runs the server tests on every configured Spigot and Paper version.");
         });
         project.getTasks().named("check").configure(task -> task.dependsOn(allServerTests));
 
-        // One task pair per version, so the version list has to be known.
+        // One task pair per server, so the version lists have to be known.
+        extension.getPaperVersions().convention(List.of());
         project.afterEvaluate(p -> {
             for (String version : extension.getVersions().get()) {
                 TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, otherPlugins,
-                        botController, viaProxy, version);
+                        botController, viaProxy, ServerType.SPIGOT, version);
+                allServerTests.configure(t -> t.dependsOn(task));
+            }
+            for (String version : extension.getPaperVersions().get()) {
+                TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, otherPlugins,
+                        botController, viaProxy, ServerType.PAPER, version);
                 allServerTests.configure(t -> t.dependsOn(task));
             }
         });
@@ -179,11 +186,15 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
     private TaskProvider<ServerTestTask> registerVersion(Project project, SpigotTestingExtension extension,
             TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBotController> botController,
-            TaskProvider<DownloadViaProxy> viaProxy, String version) {
-        String id = version.replaceAll("[^A-Za-z0-9]", "_");
+            TaskProvider<DownloadViaProxy> viaProxy, ServerType type, String version) {
+        String id = type.taskPrefix + version.replaceAll("[^A-Za-z0-9]", "_");
+        String name = type.displayName + " " + version;
+        String dir = type.directoryPrefix + version;
         Provider<Directory> cache = extension.getCacheDirectory();
-        Provider<JavaLauncher> launcher = cache.flatMap(dir -> {
-            int java = SpigotVersions.requiredJava(version, dir.getAsFile());
+        Provider<JavaLauncher> launcher = cache.flatMap(cacheDir -> {
+            int java = type == ServerType.PAPER
+                    ? PaperVersions.requiredJava(version, cacheDir.getAsFile())
+                    : SpigotVersions.requiredJava(version, cacheDir.getAsFile());
             return getToolchains().launcherFor(spec -> {
                 spec.getLanguageVersion().set(JavaLanguageVersion.of(java));
                 if (java == 8 && APPLE_SILICON) {
@@ -193,20 +204,32 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             });
         });
 
-        TaskProvider<BuildSpigotTask> buildSpigot = project.getTasks().register("buildSpigot_" + id, BuildSpigotTask.class, task -> {
-            task.setGroup("build setup");
-            task.setDescription("Builds Spigot " + version + " with BuildTools (cached).");
-            task.getMinecraftVersion().set(version);
-            task.getJavaLauncher().set(launcher);
-            task.getCacheDirectory().set(cache);
-            task.getServerJar().set(cache.map(dir -> dir.file("servers/spigot-" + version + ".jar")));
-        });
+        Provider<RegularFile> serverJar;
+        if (type == ServerType.PAPER) {
+            serverJar = project.getTasks().register("downloadPaper_" + id.substring(type.taskPrefix.length()), DownloadPaperTask.class, task -> {
+                task.setGroup("build setup");
+                task.setDescription("Downloads the latest Paper " + version + " build (cached).");
+                task.getMinecraftVersion().set(version);
+                task.getCacheDirectory().set(cache);
+                task.getServerJar().set(cache.map(c -> c.file("servers/paper-" + version + ".jar")));
+            }).flatMap(DownloadPaperTask::getServerJar);
+        } else {
+            serverJar = project.getTasks().register("buildSpigot_" + id, BuildSpigotTask.class, task -> {
+                task.setGroup("build setup");
+                task.setDescription("Builds Spigot " + version + " with BuildTools (cached).");
+                task.getMinecraftVersion().set(version);
+                task.getJavaLauncher().set(launcher);
+                task.getCacheDirectory().set(cache);
+                task.getServerJar().set(cache.map(c -> c.file("servers/spigot-" + version + ".jar")));
+            }).flatMap(BuildSpigotTask::getServerJar);
+        }
 
         return project.getTasks().register("serverTest_" + id, ServerTestTask.class, task -> {
             task.setGroup(GROUP);
-            task.setDescription("Runs the server tests on Spigot " + version + ".");
+            task.setDescription("Runs the server tests on " + name + ".");
             task.getMinecraftVersion().set(version);
-            task.getServerJar().set(buildSpigot.flatMap(BuildSpigotTask::getServerJar));
+            task.getServerName().set(name);
+            task.getServerJar().set(serverJar);
             task.getPluginJar().set(extension.getPluginJar());
             task.getHarnessJar().set(harnessJar.flatMap(Jar::getArchiveFile));
             task.getOtherPlugins().from(otherPlugins);
@@ -218,9 +241,25 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getAcceptEula().set(extension.getAcceptEula());
             task.getJvmArgs().set(extension.getJvmArgs());
             task.getRunTimeout().set(extension.getTimeout());
-            task.getServerDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + version + "/server"));
-            task.getResultsDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + version + "/results"));
+            task.getServerDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + dir + "/server"));
+            task.getResultsDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + dir + "/results"));
         });
+    }
+
+    /** Spigot (built with BuildTools) or Paper (downloaded from PaperMC). */
+    enum ServerType {
+        SPIGOT("Spigot", "", ""),
+        PAPER("Paper", "paper_", "paper-");
+
+        final String displayName;
+        final String taskPrefix;
+        final String directoryPrefix;
+
+        ServerType(String displayName, String taskPrefix, String directoryPrefix) {
+            this.displayName = displayName;
+            this.taskPrefix = taskPrefix;
+            this.directoryPrefix = directoryPrefix;
+        }
     }
 
     private static Properties loadVersions() {

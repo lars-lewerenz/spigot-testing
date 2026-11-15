@@ -53,6 +53,10 @@ public abstract class ServerTestTask extends DefaultTask {
     @Input
     public abstract Property<String> getMinecraftVersion();
 
+    /** Shown in the build output, e.g. "Spigot 1.8.8" or "Paper 26.3". */
+    @Input
+    public abstract Property<String> getServerName();
+
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getServerJar();
@@ -114,6 +118,7 @@ public abstract class ServerTestTask extends DefaultTask {
         JavaLauncher launcher = getJavaLauncher().get();
         getWorkers().noIsolation().submit(Work.class, p -> {
             p.getMinecraftVersion().set(getMinecraftVersion());
+            p.getServerName().set(getServerName());
             p.getJavaExecutable().set(launcher.getExecutablePath());
             p.getJavaVersion().set(launcher.getMetadata().getLanguageVersion().asInt());
             p.getBotControllerJar().set(getBotControllerJar());
@@ -132,6 +137,8 @@ public abstract class ServerTestTask extends DefaultTask {
 
     public interface Params extends WorkParameters {
         Property<String> getMinecraftVersion();
+
+        Property<String> getServerName();
 
         RegularFileProperty getJavaExecutable();
 
@@ -184,7 +191,7 @@ public abstract class ServerTestTask extends DefaultTask {
 
         private void run() throws IOException, InterruptedException {
             Params p = getParameters();
-            String version = p.getMinecraftVersion().get();
+            String version = p.getServerName().get();
             File serverDir = p.getServerDirectory().get().getAsFile();
             File resultsDir = p.getResultsDirectory().get().getAsFile();
             int serverPort = prepareServerDirectory(serverDir.toPath());
@@ -236,13 +243,13 @@ public abstract class ServerTestTask extends DefaultTask {
             command.add(p.getServerJar().get().getAsFile().getAbsolutePath());
             command.add("nogui");
 
-            LOGGER.lifecycle("[{}] Starting Spigot {} on Java {}", version, version, p.getJavaVersion().get());
+            LOGGER.lifecycle("[{}] Starting {} on Java {}", version, version, p.getJavaVersion().get());
             long start = System.nanoTime();
             Process process = new ProcessBuilder(command)
                     .directory(serverDir)
                     .redirectErrorStream(true)
                     .start();
-            Thread pump = new Thread(() -> pumpOutput(version, process.getInputStream(), log), "spigot-testing-output-" + version);
+            Thread pump = new Thread(() -> pumpOutput(version, process.getInputStream(), log), "spigot-testing-output-" + version.replace(' ', '-'));
             pump.start();
 
             Duration timeout = p.getRunTimeout().get();
@@ -252,7 +259,7 @@ public abstract class ServerTestTask extends DefaultTask {
                     process.destroyForcibly();
                 }
                 pump.join(5000);
-                throw new GradleException("Spigot " + version + " did not finish within " + timeout
+                throw new GradleException(version + " did not finish within " + timeout
                         + ". Server log: " + log + "\n" + Logs.tail(log, 40));
             }
             pump.join(5000);
@@ -344,7 +351,7 @@ public abstract class ServerTestTask extends DefaultTask {
             File summaryFile = new File(resultsDir, "summary.properties");
             if (!summaryFile.isFile()) {
                 File error = new File(resultsDir, "error.txt");
-                throw new GradleException("Spigot " + version + " stopped without test results"
+                throw new GradleException(version + " stopped without test results"
                         + (error.isFile() ? ":\n" + Files.readString(error.toPath()) : " (did the plugin under test fail to enable?)")
                         + "\nServer log: " + log + "\n" + Logs.tail(log, 40));
             }
@@ -358,7 +365,7 @@ public abstract class ServerTestTask extends DefaultTask {
                     version, summary.getProperty("server"), found, summary.getProperty("succeeded"), failed,
                     summary.getProperty("skipped"), summary.getProperty("aborted"), took.toSeconds());
             if (failed > 0) {
-                throw new GradleException(failed + " server test(s) failed on Spigot " + version + ":\n\n"
+                throw new GradleException(failed + " server test(s) failed on " + version + ":\n\n"
                         + Files.readString(new File(resultsDir, "failures.txt").toPath())
                         + "JUnit XML report: " + new File(resultsDir, "junit-xml") + "\nServer log: " + log);
             }

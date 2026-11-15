@@ -13,6 +13,12 @@ public abstract class SpigotTestingExtension {
     public abstract ListProperty<String> getVersions();
 
     /**
+     * Paper versions to run the server tests on as well, e.g. {@code "1.8.8"}, {@code "26.3"}.
+     * The latest build of each is downloaded from PaperMC once and cached.
+     */
+    public abstract ListProperty<String> getPaperVersions();
+
+    /**
      * Whether you accept the Minecraft EULA (https://aka.ms/MinecraftEULA), which is required to
      * run the servers. Defaults to the Gradle property {@code spigotTesting.acceptEula}.
      */

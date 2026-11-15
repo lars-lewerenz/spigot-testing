@@ -23,6 +23,8 @@ spigotTesting {
     // One Spigot version per Java generation: 1.8.8 / 1.12.2 (Java 8), 1.20.4 (Java 17),
     // 1.21.11 (Java 21) and 26.3 (Java 25).
     versions = listOf("1.8.8", "1.12.2", "1.20.4", "1.21.11", "26.3")
+    // The same tests on Paper too: the oldest, the last 1.x and the newest.
+    paperVersions = listOf("1.8.8", "1.21.11", "26.3")
     // Other plugins installed on the test servers next to Greeter. (Plugin jars from a Maven
     // repository or local files go into the serverTestPlugin configuration instead.)
     pluginUrls.addAll(
