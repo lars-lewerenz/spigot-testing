@@ -47,4 +47,8 @@ tasks.processResources {
         into("io/github/larslewerenz/spigottesting/gradle")
         rename { "spigot-testing-bots.jar" }
     }
+    // The bundled bot controller's third-party licenses, also at the top level of this jar.
+    from(project(":spigot-testing-bots").file("src/main/resources/META-INF/THIRD-PARTY-NOTICES.txt")) {
+        into("META-INF")
+    }
 }

@@ -12,6 +12,7 @@ Your plugin, on real servers, against real players, on every Minecraft version y
 ![Java](https://img.shields.io/badge/Java-8%20%E2%86%92%2025-ED8B00?logo=openjdk&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-9-02303A?logo=gradle&logoColor=white)
 ![JUnit](https://img.shields.io/badge/JUnit-5-25A162?logo=junit5&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 [Features](#-features) ·
 [Quick start](#-quick-start) ·
@@ -472,3 +473,14 @@ Or build it yourself: `./gradlew -p framework publishToMavenLocal` and use `mave
   time they're first cached. Delete `~/.gradle/caches/spigot-testing/servers` to refresh.
 - **Ideas:** client-side movement and block interaction, what the client sees beyond chat (titles,
   scoreboards, boss bars), restarting the server within a test run to check persistence.
+
+## 📄 License
+
+spigot-testing is released under the [MIT License](LICENSE).
+
+The Gradle plugin bundles the bot client — [MCProtocolLib](https://github.com/GeyserMC/MCProtocolLib)
+and the libraries it needs (MIT and Apache-2.0); their licenses are in
+[`THIRD-PARTY-NOTICES.txt`](framework/bots/src/main/resources/META-INF/THIRD-PARTY-NOTICES.txt),
+which also ships inside the jar. [ViaProxy](https://github.com/ViaVersion/ViaProxy) (GPL-3.0) is
+not bundled: it is downloaded from its releases when server tests run and started as a separate
+program.

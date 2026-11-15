@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1]
+
+### Licensing
+
+- spigot-testing is now released under the **MIT License**; the published POMs say so and every
+  jar carries the license.
+- The bundled bot client no longer includes MinecraftAuth (LGPL-3.0, Microsoft-account login)
+  or its helper libraries: bots join offline-mode servers and never needed them. The plugin jar
+  is ~250 KB smaller.
+- The licenses of all bundled libraries (MCProtocolLib, Adventure, Netty, …) now ship in the
+  plugin jar as `META-INF/THIRD-PARTY-NOTICES.txt`, with Netty's NOTICE and license files.
+
+Re-tested on all 36 servers (18 versions, Spigot and Paper).
+
 ## [0.1.0]
 
 First release.
