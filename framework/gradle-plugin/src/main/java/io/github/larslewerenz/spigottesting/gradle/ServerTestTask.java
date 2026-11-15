@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RegularFileProperty;
@@ -30,6 +31,7 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputDirectory;
@@ -62,6 +64,11 @@ public abstract class ServerTestTask extends DefaultTask {
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getHarnessJar();
+
+    /** Other plugins installed next to the plugin under test. */
+    @InputFiles
+    @PathSensitive(PathSensitivity.NAME_ONLY)
+    public abstract ConfigurableFileCollection getOtherPlugins();
 
     @Nested
     public abstract Property<JavaLauncher> getJavaLauncher();
@@ -115,6 +122,7 @@ public abstract class ServerTestTask extends DefaultTask {
             p.getServerJar().set(getServerJar());
             p.getPluginJar().set(getPluginJar());
             p.getHarnessJar().set(getHarnessJar());
+            p.getOtherPlugins().from(getOtherPlugins());
             p.getJvmArgs().set(getJvmArgs());
             p.getRunTimeout().set(getRunTimeout());
             p.getServerDirectory().set(getServerDirectory());
@@ -140,6 +148,8 @@ public abstract class ServerTestTask extends DefaultTask {
         RegularFileProperty getPluginJar();
 
         RegularFileProperty getHarnessJar();
+
+        ConfigurableFileCollection getOtherPlugins();
 
         ListProperty<String> getJvmArgs();
 
@@ -301,6 +311,10 @@ public abstract class ServerTestTask extends DefaultTask {
             Params p = getParameters();
             Files.copy(p.getPluginJar().get().getAsFile().toPath(), plugins.resolve("plugin-under-test.jar"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(p.getHarnessJar().get().getAsFile().toPath(), plugins.resolve("spigot-testing-harness.jar"), StandardCopyOption.REPLACE_EXISTING);
+            int index = 0;
+            for (File other : p.getOtherPlugins().getFiles()) {
+                Files.copy(other.toPath(), plugins.resolve("other-" + index++ + "-" + other.getName()), StandardCopyOption.REPLACE_EXISTING);
+            }
             return port;
         }
 

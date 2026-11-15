@@ -35,6 +35,24 @@ public final class BotControl {
         request("QUIT " + name);
     }
 
+    /** The title of the container open on the client, or null. */
+    public static String openInventoryTitle(String name) {
+        try (Socket socket = connect()) {
+            String title = ok(send(socket, "INVENTORY " + name).readLine());
+            return title.isEmpty() ? null : new String(Base64.getDecoder().decode(title), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Talking to the bot controller failed", e);
+        }
+    }
+
+    public static void click(String name, int slot, String type) {
+        request("CLICK " + name + " " + slot + " " + type);
+    }
+
+    public static void closeInventory(String name) {
+        request("CLOSE " + name);
+    }
+
     public static List<String> messages(String name) {
         try (Socket socket = connect()) {
             BufferedReader in = send(socket, "MESSAGES " + name);

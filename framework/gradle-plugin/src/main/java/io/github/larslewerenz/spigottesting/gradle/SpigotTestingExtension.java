@@ -18,6 +18,13 @@ public abstract class SpigotTestingExtension {
      */
     public abstract Property<Boolean> getAcceptEula();
 
+    /**
+     * Download URLs of other plugins to install on the test servers, for plugins that are not
+     * available from a Maven repository (those go into the {@code serverTestPlugin} configuration).
+     * Downloaded once and cached.
+     */
+    public abstract ListProperty<String> getPluginUrls();
+
     /** The plugin jar to test. Defaults to the output of the {@code jar} task. */
     public abstract RegularFileProperty getPluginJar();
 

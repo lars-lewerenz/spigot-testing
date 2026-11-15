@@ -16,6 +16,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.DuplicatesStrategy;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
@@ -41,6 +42,7 @@ import org.gradle.jvm.toolchain.JvmVendorSpec;
 public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
     public static final String SOURCE_SET_NAME = "serverTest";
+    public static final String PLUGIN_CONFIGURATION_NAME = "serverTestPlugin";
     private static final String GROUP = "verification";
     /** MCProtocolLib, which the bot controller uses, needs Java 21. */
     private static final int BOT_JAVA_VERSION = 21;
@@ -71,7 +73,8 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         project.getDependencies().add(serverTest.getImplementationConfigurationName(),
                 "io.github.lars-lewerenz:spigot-testing-runtime:" + versions.getProperty("version"));
 
-        TaskProvider<Jar> harnessJar = registerHarnessJar(project, extension, serverTest);
+        FileCollection otherPlugins = configureOtherPlugins(project, extension, serverTest);
+        TaskProvider<Jar> harnessJar = registerHarnessJar(project, extension, serverTest, otherPlugins);
         TaskProvider<ExtractBotController> botController = project.getTasks().register(
                 "extractBotController", ExtractBotController.class, task ->
                         task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/spigot-testing-bots.jar")));
@@ -90,7 +93,8 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         // One task pair per version, so the version list has to be known.
         project.afterEvaluate(p -> {
             for (String version : extension.getVersions().get()) {
-                TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, botController, viaProxy, version);
+                TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, otherPlugins,
+                        botController, viaProxy, version);
                 allServerTests.configure(t -> t.dependsOn(task));
             }
         });
@@ -122,10 +126,36 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         return serverTest;
     }
 
-    private static TaskProvider<Jar> registerHarnessJar(Project project, SpigotTestingExtension extension, SourceSet serverTest) {
+    /**
+     * Other plugins for the test servers: the {@code serverTestPlugin} configuration (Maven
+     * coordinates or files) plus {@code spigotTesting.pluginUrls}. They are also on the server
+     * tests' compile classpath, so tests can use their APIs.
+     */
+    private static FileCollection configureOtherPlugins(Project project, SpigotTestingExtension extension, SourceSet serverTest) {
+        ConfigurationContainer configurations = project.getConfigurations();
+        Configuration declared = configurations.dependencyScope(PLUGIN_CONFIGURATION_NAME, c ->
+                c.setDescription("Other plugins to install on the test servers, next to the plugin under test.")).get();
+        Configuration files = configurations.resolvable(PLUGIN_CONFIGURATION_NAME + "Files", c -> {
+            c.extendsFrom(declared);
+            c.setTransitive(false); // plugin jars bundle what they need
+        }).get();
+        configurations.getByName(serverTest.getCompileOnlyConfigurationName()).extendsFrom(declared);
+
+        extension.getPluginUrls().convention(List.of());
+        TaskProvider<DownloadPlugins> downloads = project.getTasks().register("downloadServerTestPlugins", DownloadPlugins.class, task -> {
+            task.getUrls().set(extension.getPluginUrls());
+            task.getCacheDirectory().set(extension.getCacheDirectory().map(dir -> dir.dir("plugins")));
+            task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/downloaded-plugins"));
+        });
+        return project.files(files, project.files(downloads.flatMap(DownloadPlugins::getOutputDirectory)).getAsFileTree());
+    }
+
+    private static TaskProvider<Jar> registerHarnessJar(Project project, SpigotTestingExtension extension, SourceSet serverTest,
+            FileCollection otherPlugins) {
         TaskProvider<GenerateHarnessResources> resources = project.getTasks().register(
                 "generateServerTestHarnessResources", GenerateHarnessResources.class, task -> {
                     task.getPluginJar().set(extension.getPluginJar());
+                    task.getOtherPlugins().from(otherPlugins);
                     task.getTestClassesDirs().from(serverTest.getOutput().getClassesDirs());
                     task.getOutputDirectory().set(project.getLayout().getBuildDirectory().dir("generated/spigot-testing"));
                 });
@@ -148,7 +178,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
     }
 
     private TaskProvider<ServerTestTask> registerVersion(Project project, SpigotTestingExtension extension,
-            TaskProvider<Jar> harnessJar, TaskProvider<ExtractBotController> botController,
+            TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBotController> botController,
             TaskProvider<DownloadViaProxy> viaProxy, String version) {
         String id = version.replaceAll("[^A-Za-z0-9]", "_");
         Provider<Directory> cache = extension.getCacheDirectory();
@@ -179,6 +209,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getServerJar().set(buildSpigot.flatMap(BuildSpigotTask::getServerJar));
             task.getPluginJar().set(extension.getPluginJar());
             task.getHarnessJar().set(harnessJar.flatMap(Jar::getArchiveFile));
+            task.getOtherPlugins().from(otherPlugins);
             task.getJavaLauncher().set(launcher);
             task.getBotControllerJar().set(botController.flatMap(ExtractBotController::getJar));
             task.getBotJavaLauncher().set(getToolchains().launcherFor(spec ->

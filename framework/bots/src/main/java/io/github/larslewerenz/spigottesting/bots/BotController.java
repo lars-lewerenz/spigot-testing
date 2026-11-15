@@ -23,6 +23,9 @@ import java.util.regex.Pattern;
  * CHAT name base64(text) -> OK | ERR reason    (text starting with "/" is sent as a command)
  * MESSAGES name          -> OK n, then n lines of base64(message)
  * QUIT name              -> OK
+ * INVENTORY name         -> OK base64(title of the open container) | OK  (nothing open)
+ * CLICK name slot type   -> OK | ERR reason    (type: LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT)
+ * CLOSE name             -> OK
  * </pre>
  *
  * <p>Bots connect through ViaProxy, so the one protocol version MCProtocolLib speaks works with
@@ -122,6 +125,19 @@ public final class BotController {
                 for (String message : messages) {
                     out.println(Base64.getEncoder().encodeToString(message.getBytes(StandardCharsets.UTF_8)));
                 }
+            }
+            case "INVENTORY" -> {
+                String title = bot(name).openContainerTitle();
+                out.println(title == null ? "OK" : "OK " + Base64.getEncoder().encodeToString(title.getBytes(StandardCharsets.UTF_8)));
+            }
+            case "CLICK" -> {
+                String[] args = request[2].split(" ");
+                bot(name).click(Integer.parseInt(args[0]), args[1]);
+                out.println("OK");
+            }
+            case "CLOSE" -> {
+                bot(name).closeContainer();
+                out.println("OK");
             }
             case "QUIT" -> {
                 Bot bot = bots.remove(name);

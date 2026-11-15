@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.event.Event;
 
 /**
  * Helpers for tests that run inside a real Spigot server.
@@ -54,6 +55,14 @@ public final class ServerTest {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while waiting for ticks", e);
         }
+    }
+
+    /**
+     * Starts recording events of the given type (a concrete event class with its own handler
+     * list, e.g. {@code PlayerJoinEvent}). Recording stops at the end of the test.
+     */
+    public static <T extends Event> EventRecorder<T> recordEvents(Class<T> type) {
+        return EventRecorder.start(type);
     }
 
     /**

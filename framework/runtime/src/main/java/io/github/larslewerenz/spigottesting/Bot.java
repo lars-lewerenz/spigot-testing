@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
 
 /**
  * A fake player: a bot client connected to the test server over the real network protocol.
@@ -75,6 +76,63 @@ public final class Bot {
         } while (System.currentTimeMillis() < deadline);
         throw new AssertionError(name + " received no message " + description + " within "
                 + MESSAGE_TIMEOUT_MILLIS / 1000 + " s. Received: " + messages);
+    }
+
+    /** The title of the inventory open on the client (a chest GUI, ...), or null if none is open. */
+    public String openInventoryTitle() {
+        Bots.requireOffMainThread();
+        return BotControl.openInventoryTitle(name);
+    }
+
+    /**
+     * Waits up to 10 seconds until the client has an inventory open whose title contains
+     * {@code text}, and returns the full title (with {@code §} color codes).
+     */
+    public String awaitInventory(String text) {
+        Bots.requireOffMainThread();
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        String title;
+        do {
+            title = BotControl.openInventoryTitle(name);
+            if (title != null && title.contains(text)) {
+                return title;
+            }
+            ServerTest.awaitTicks(1);
+        } while (System.currentTimeMillis() < deadline);
+        throw new AssertionError(name + " has no inventory titled \"" + text + "\" open after "
+                + MESSAGE_TIMEOUT_MILLIS / 1000 + " s (open: " + title + ")");
+    }
+
+    /** Left-clicks a slot of the open inventory. See {@link #click(int, ClickType)}. */
+    public void click(int slot) {
+        click(slot, ClickType.LEFT);
+    }
+
+    /**
+     * Clicks a slot of the inventory open on the client, sent as a real click packet, so the server
+     * fires {@code InventoryClickEvent} as for a player. {@code slot} is the raw slot number
+     * (top inventory first, then the player's inventory), like {@code InventoryClickEvent#getRawSlot}.
+     * Supported types: {@code LEFT}, {@code RIGHT}, {@code SHIFT_LEFT}, {@code SHIFT_RIGHT}.
+     * Returns right away; the server handles the click on one of its next ticks.
+     */
+    public void click(int slot, ClickType type) {
+        Bots.requireOffMainThread();
+        switch (type) {
+            case LEFT:
+            case RIGHT:
+            case SHIFT_LEFT:
+            case SHIFT_RIGHT:
+                BotControl.click(name, slot, type.name());
+                break;
+            default:
+                throw new UnsupportedOperationException("Bots can't do " + type + " clicks yet");
+        }
+    }
+
+    /** Closes the inventory open on the client, like pressing Escape. */
+    public void closeInventory() {
+        Bots.requireOffMainThread();
+        BotControl.closeInventory(name);
     }
 
     /** Disconnects the client and waits until the server has removed the player. */

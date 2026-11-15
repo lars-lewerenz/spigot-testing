@@ -19,17 +19,34 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         saveDefaultConfig();
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(new GreeterMenu(this), this);
         getServer().getScheduler().runTaskTimer(this, this::lockDay, 20L, 20L);
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            // Only touch the expansion class when PlaceholderAPI is installed (soft dependency).
+            new GreeterExpansion(this).register();
+        }
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equals("menu")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage("Only players can open the menu.");
+                return true;
+            }
+            GreeterMenu.open((Player) sender);
+            return true;
+        }
         if (args.length != 1) {
             return false; // Bukkit then sends the usage from plugin.yml
         }
-        sender.sendMessage(Greetings.format(getConfig().getString("greeting"), args[0]));
-        greetings++;
+        greet(sender, args[0]);
         return true;
+    }
+
+    void greet(CommandSender sender, String name) {
+        sender.sendMessage(Greetings.format(getConfig().getString("greeting"), name));
+        greetings++;
     }
 
     @EventHandler

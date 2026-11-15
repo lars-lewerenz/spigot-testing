@@ -68,6 +68,15 @@ class GreeterServerTest {
   `ServerTest.sync(...)` for Bukkit calls and `ServerTest.awaitTicks(n)` to let the server tick.
 - `ServerTest.dispatchCommand("cmd args")` runs a command as the console and records the messages
   sent back.
+- `ServerTest.recordEvents(SomeEvent.class)` records events as they look after every plugin has
+  handled them (MONITOR priority, cancelled ones included): `events()`, or `awaitEvent(...)` in
+  `@OffMainThread` tests. Recording stops at the end of the test.
+
+  ```java
+  EventRecorder<CreatureSpawnEvent> spawns = ServerTest.recordEvents(CreatureSpawnEvent.class);
+  world.spawnEntity(location, EntityType.CREEPER);
+  assertTrue(spawns.events().get(0).isCancelled());
+  ```
 - The tests are loaded by a different class loader than your plugin, so they can only use your
   plugin's **public** API, even from the same package.
 - Compile the tests for the oldest Java you target (`options.release = 8` for 1.8.8 – 1.16.5).
@@ -107,6 +116,57 @@ class GreeterPlayerTest {
 - `bot.quit()` disconnects and waits until the server has removed the player. Bots still online
   at the end of a test are disconnected automatically.
 
+### Inventory GUIs
+
+Bots see the inventories the server opens for them and click them with real click packets, so
+your plugin gets the same `InventoryClickEvent`s as from a player:
+
+```java
+@Test
+void clickingThePaperGreetsAndClosesTheMenu() {
+    Bot alex = Bots.join("Alex");
+    alex.chat("/menu");
+    assertEquals(GreeterMenu.TITLE, alex.awaitInventory("Greeter Menu"));
+
+    alex.click(GreeterMenu.GREET_SLOT); // or click(slot, ClickType.SHIFT_LEFT)
+
+    assertEquals(ChatColor.GREEN + "Hello, Alex!", alex.awaitMessage("Hello"));
+}
+```
+
+- `bot.awaitInventory(title)` waits until the client has an inventory with that title open;
+  `bot.openInventoryTitle()` returns the current one (or null).
+- `bot.click(slot)` / `bot.click(slot, ClickType)`: `LEFT`, `RIGHT`, `SHIFT_LEFT` or `SHIFT_RIGHT`
+  on a raw slot number (top inventory first, then the player's), like
+  `InventoryClickEvent#getRawSlot`.
+- `bot.closeInventory()` closes it like pressing Escape.
+- Check the items through the server side, e.g. `bot.player().getOpenInventory()` inside
+  `ServerTest.sync(...)`, and the clicks with `ServerTest.recordEvents(InventoryClickEvent.class)`.
+
+## Other plugins on the test server
+
+Install the plugins yours works with (Vault, PlaceholderAPI, LuckPerms, …) next to it:
+
+```kotlin
+dependencies {
+    serverTestPlugin(files("libs/SomePlugin.jar"))          // local jar
+    serverTestPlugin("com.example:some-plugin:1.0")         // runnable plugin jar from Maven
+}
+spigotTesting {
+    pluginUrls.add("https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar")
+}
+```
+
+- `serverTestPlugin` jars are also on the server tests' compile classpath.
+- `pluginUrls` are downloaded once and cached in the cache directory.
+- The test harness soft-depends on all of them, so they are enabled before the tests run and the
+  tests can call their APIs (e.g. `PlaceholderAPI.setPlaceholders(...)`).
+- Many plugins publish only their **API** on Maven (PlaceholderAPI does: the Maven jar lacks the
+  libraries the real plugin bundles and won't load). Compile against that, and install the real
+  plugin jar from its release download.
+- The same plugins are installed on every version, so pick plugin versions that support your
+  whole version range.
+
 The bots use [MCProtocolLib](https://github.com/GeyserMC/MCProtocolLib), which speaks the newest
 protocol, and connect through [ViaProxy](https://github.com/ViaVersion/ViaProxy), which
 translates to the server's version, so the same bots work from 1.8.8 to 26.x. Both run in a
@@ -143,6 +203,7 @@ The server tests refuse to start until you do, by setting the Gradle property
 spigotTesting {
     versions = listOf("1.8.8", "1.21.11")       // required for server tests
     pluginJar = tasks.shadowJar.flatMap { it.archiveFile } // default: the jar task's output
+    pluginUrls.add("https://…/OtherPlugin.jar") // other plugins for the test servers
     jvmArgs = listOf("-Xmx2G")                  // default
     timeout = java.time.Duration.ofMinutes(10)  // per server run, default 10 minutes
     acceptEula = true                           // default: Gradle property spigotTesting.acceptEula
@@ -157,8 +218,9 @@ spigotTesting {
   - `runtime/` — the code that runs inside the server: `ServerTest`, `@OffMainThread`, `Bots`,
     the JUnit runner (Java 8)
   - `bots/` — the bot controller (MCProtocolLib, Java 21), bundled into the Gradle plugin
-- `example-plugin/` — a small example plugin (`/greet`, welcomes players, blocks creepers, skips
-  the night) with unit tests, server tests and tests with bots
+- `example-plugin/` — a small example plugin (`/greet`, a `/menu` chest GUI, welcomes players,
+  blocks creepers, skips the night, a PlaceholderAPI placeholder) with unit tests, server tests
+  and tests with bots
 
 ## Using it in another project
 
@@ -190,8 +252,8 @@ download the JDKs the servers need.
 
 ## Limitations
 
-- Bots can join, chat, run commands and quit, and they record the chat they receive. They don't
-  move, interact with blocks or click inventories from the client side yet; do that through the
-  server-side `Player` instead.
+- Bots can join, chat, run commands, click inventory GUIs and quit, and they record the chat and
+  inventory titles they receive. They don't move or interact with blocks and entities from the
+  client side yet; do that through the server-side `Player` instead.
 - Bots join in offline mode with unsigned chat (the test servers run with `online-mode=false`).
 - Spigot only (built with BuildTools). Paper and other forks are not supported yet.

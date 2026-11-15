@@ -1,2 +1,2 @@
 io.github.larslewerenz.spigottesting.internal.MainThreadInterceptor
-io.github.larslewerenz.spigottesting.internal.BotCleanup
+io.github.larslewerenz.spigottesting.internal.TestCleanup

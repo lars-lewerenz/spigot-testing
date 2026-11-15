@@ -41,6 +41,11 @@ public abstract class GenerateHarnessResources extends DefaultTask {
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract ConfigurableFileCollection getTestClassesDirs();
 
+    /** Other plugins on the test server: the harness loads after them, so tests can use them. */
+    @InputFiles
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract ConfigurableFileCollection getOtherPlugins();
+
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
@@ -48,13 +53,18 @@ public abstract class GenerateHarnessResources extends DefaultTask {
     public void generate() throws IOException {
         Path out = getOutputDirectory().get().getAsFile().toPath();
         String target = readPluginName(getPluginJar().get().getAsFile());
+        List<String> others = new ArrayList<>();
+        for (File jar : getOtherPlugins().getFiles()) {
+            others.add(quote(readPluginName(jar)));
+        }
 
         Files.writeString(out.resolve("plugin.yml"), String.join("\n",
                 "name: SpigotTesting",
                 "version: '1.0'",
                 "main: io.github.larslewerenz.spigottesting.internal.HarnessPlugin",
                 "api-version: '1.13'",
-                "depend: ['" + target.replace("'", "''") + "']",
+                "depend: [" + quote(target) + "]",
+                "softdepend: [" + String.join(", ", others) + "]",
                 ""));
 
         List<String> classes = new ArrayList<>();
@@ -74,6 +84,10 @@ public abstract class GenerateHarnessResources extends DefaultTask {
         Path list = out.resolve("spigot-testing/tests.txt");
         Files.createDirectories(list.getParent());
         Files.write(list, classes, StandardCharsets.UTF_8);
+    }
+
+    private static String quote(String yamlString) {
+        return "'" + yamlString.replace("'", "''") + "'";
     }
 
     private static String readPluginName(File pluginJar) throws IOException {
