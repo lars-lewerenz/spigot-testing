@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
@@ -29,6 +30,7 @@ import org.gradle.api.tasks.TaskAction;
  * Writes the harness plugin's {@code plugin.yml} (depending on the plugin under test) and the list
  * of test classes to run.
  */
+@DisableCachingByDefault(because = "Generating two small files is faster than the build cache")
 public abstract class GenerateHarnessResources extends DefaultTask {
 
     private static final Pattern NAME = Pattern.compile("(?m)^name\\s*:\\s*['\"]?([^'\"#\\r\\n]+?)['\"]?\\s*(#.*)?$");
@@ -51,7 +53,7 @@ public abstract class GenerateHarnessResources extends DefaultTask {
 
     @TaskAction
     public void generate() throws IOException {
-        Path out = getOutputDirectory().get().getAsFile().toPath();
+        Path out = Files.createDirectories(getOutputDirectory().get().getAsFile().toPath());
         String target = readPluginName(getPluginJar().get().getAsFile());
         List<String> others = new ArrayList<>();
         for (File jar : getOtherPlugins().getFiles()) {
@@ -86,6 +88,12 @@ public abstract class GenerateHarnessResources extends DefaultTask {
         Files.write(list, classes, StandardCharsets.UTF_8);
     }
 
+    /** The top-level {@code name} of a plugin.yml, or null. */
+    static String pluginName(String pluginYml) {
+        Matcher m = NAME.matcher(pluginYml);
+        return m.find() ? m.group(1).trim() : null;
+    }
+
     private static String quote(String yamlString) {
         return "'" + yamlString.replace("'", "''") + "'";
     }
@@ -97,11 +105,11 @@ public abstract class GenerateHarnessResources extends DefaultTask {
                 throw new GradleException(pluginJar + " has no plugin.yml");
             }
             try (InputStream in = zip.getInputStream(entry)) {
-                Matcher m = NAME.matcher(new String(in.readAllBytes(), StandardCharsets.UTF_8));
-                if (!m.find()) {
+                String name = pluginName(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+                if (name == null) {
                     throw new GradleException("No 'name' in the plugin.yml of " + pluginJar);
                 }
-                return m.group(1).trim();
+                return name;
             }
         }
     }

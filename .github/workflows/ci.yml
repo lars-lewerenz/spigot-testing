@@ -25,97 +25,36 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build framework and example, run unit tests
+      - name: Build and test the framework
+        run: ./gradlew -p framework build
+      - name: Build the example, run its unit tests
         run: ./gradlew :example-plugin:test :example-plugin:serverTestHarnessJar
       - name: Upload unit test reports
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: unit-test-reports
-          path: example-plugin/build/reports/tests/
+          path: |
+            framework/*/build/reports/tests/
+            example-plugin/build/reports/tests/
 
-  server-test:
-    name: Server tests (${{ matrix.server }} ${{ matrix.version }})
+  server-tests:
+    name: Server tests
     needs: build
     # Running a Minecraft server requires accepting the Minecraft EULA
     # (https://aka.ms/MinecraftEULA). Server tests run only once the repository
     # variable ACCEPT_MINECRAFT_EULA is set to "true".
     if: vars.ACCEPT_MINECRAFT_EULA == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        # Keep in sync with spigotTesting.versions / paperVersions in example-plugin/build.gradle.kts.
-        include:
-          - { server: Spigot, version: "1.8.8" }
-          - { server: Spigot, version: "1.12.2" }
-          - { server: Spigot, version: "1.20.4" }
-          - { server: Spigot, version: "1.21.11" }
-          - { server: Spigot, version: "26.3" }
-          - { server: Paper, version: "1.8.8" }
-          - { server: Paper, version: "1.21.11" }
-          - { server: Paper, version: "26.3" }
-    env:
-      SPIGOT_CACHE: ~/.gradle/caches/spigot-testing
-      # Lets Gradle's toolchains use the JDKs installed below instead of downloading them.
-      JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          # The JDKs the servers need. The last one runs Gradle.
-          java-version: |
-            8
-            17
-            25
-            21
-      - uses: gradle/actions/setup-gradle@v6
-      - name: Task and directory names
-        id: names
-        run: |
-          id="${VERSION//./_}"
-          if [ "$SERVER" = "Paper" ]; then
-            echo "task=serverTest_paper_$id" >> "$GITHUB_OUTPUT"
-            echo "dir=paper-$VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "task=serverTest_$id" >> "$GITHUB_OUTPUT"
-            echo "build=buildSpigot_$id" >> "$GITHUB_OUTPUT"
-            echo "dir=$VERSION" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          SERVER: ${{ matrix.server }}
-          VERSION: ${{ matrix.version }}
-
-      # Building Spigot with BuildTools takes a few minutes, so the jar is cached. (Paper is a
-      # quick download.) Bump the "v1" to force a rebuild, e.g. to pick up new Spigot builds.
-      - name: Restore Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot'
-        id: spigot-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
-            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
-          key: spigot-${{ matrix.version }}-v1
-      - name: Build Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
-        run: ./gradlew :example-plugin:${{ steps.names.outputs.build }} ${{ env.JDKS }}
-      - name: Save Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
-            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
-          key: spigot-${{ matrix.version }}-v1
-
-      - name: Run server tests
-        run: ./gradlew :example-plugin:${{ steps.names.outputs.task }} -PspigotTesting.acceptEula=true ${{ env.JDKS }}
-      - name: Upload server logs and reports
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: server-test-results-${{ matrix.server }}-${{ matrix.version }}
-          path: example-plugin/build/spigot-testing/${{ steps.names.outputs.dir }}/results/
+    uses: ./.github/workflows/server-tests.yml
+    with:
+      # Core servers: the oldest, one per Java generation and the newest.
+      # compatibility.yml covers every major version.
+      servers: >-
+        [{"server": "Spigot", "version": "1.8.8"},
+         {"server": "Spigot", "version": "1.12.2"},
+         {"server": "Spigot", "version": "1.20.4"},
+         {"server": "Spigot", "version": "1.21.11"},
+         {"server": "Spigot", "version": "26.3"},
+         {"server": "Paper", "version": "1.8.8"},
+         {"server": "Paper", "version": "1.21.11"},
+         {"server": "Paper", "version": "26.3"}]

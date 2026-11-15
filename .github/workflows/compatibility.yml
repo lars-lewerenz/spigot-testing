@@ -1,0 +1,54 @@
+name: Compatibility
+
+# The example plugin's server tests on every major Minecraft version, on Spigot and Paper
+# (36 servers). Started by hand, since it uses about an hour of Actions minutes the first time
+# (BuildTools) and about 40 minutes afterwards.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server-tests:
+    name: Server tests
+    if: vars.ACCEPT_MINECRAFT_EULA == 'true'
+    uses: ./.github/workflows/server-tests.yml
+    with:
+      servers: >-
+        [{"server": "Spigot", "version": "1.8.8"},
+         {"server": "Spigot", "version": "1.9.4"},
+         {"server": "Spigot", "version": "1.10.2"},
+         {"server": "Spigot", "version": "1.11.2"},
+         {"server": "Spigot", "version": "1.12.2"},
+         {"server": "Spigot", "version": "1.13.2"},
+         {"server": "Spigot", "version": "1.14.4"},
+         {"server": "Spigot", "version": "1.15.2"},
+         {"server": "Spigot", "version": "1.16.5"},
+         {"server": "Spigot", "version": "1.17.1"},
+         {"server": "Spigot", "version": "1.18.2"},
+         {"server": "Spigot", "version": "1.19.4"},
+         {"server": "Spigot", "version": "1.20.4"},
+         {"server": "Spigot", "version": "1.20.6"},
+         {"server": "Spigot", "version": "1.21.4"},
+         {"server": "Spigot", "version": "1.21.11"},
+         {"server": "Spigot", "version": "26.1.2"},
+         {"server": "Spigot", "version": "26.3"},
+         {"server": "Paper", "version": "1.8.8"},
+         {"server": "Paper", "version": "1.9.4"},
+         {"server": "Paper", "version": "1.10.2"},
+         {"server": "Paper", "version": "1.11.2"},
+         {"server": "Paper", "version": "1.12.2"},
+         {"server": "Paper", "version": "1.13.2"},
+         {"server": "Paper", "version": "1.14.4"},
+         {"server": "Paper", "version": "1.15.2"},
+         {"server": "Paper", "version": "1.16.5"},
+         {"server": "Paper", "version": "1.17.1"},
+         {"server": "Paper", "version": "1.18.2"},
+         {"server": "Paper", "version": "1.19.4"},
+         {"server": "Paper", "version": "1.20.4"},
+         {"server": "Paper", "version": "1.20.6"},
+         {"server": "Paper", "version": "1.21.4"},
+         {"server": "Paper", "version": "1.21.11"},
+         {"server": "Paper", "version": "26.1.2"},
+         {"server": "Paper", "version": "26.3"}]

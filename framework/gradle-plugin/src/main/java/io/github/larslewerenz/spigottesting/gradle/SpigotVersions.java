@@ -19,14 +19,17 @@ final class SpigotVersions {
 
     static final String VERSIONS_URL = "https://hub.spigotmc.org/versions/";
 
-    private static final Pattern JAVA_VERSIONS = Pattern.compile("\"javaVersions\"\\s*:\\s*\\[\\s*(\\d+)");
+    private static final Pattern JAVA_VERSIONS = Pattern.compile("\"javaVersions\"\\s*:\\s*\\[\\s*(\\d+)(?:\\s*,\\s*(\\d+))?");
+    /** Long-term support releases: available for every platform and preinstalled on CI runners. */
+    private static final int[] LTS = {8, 11, 17, 21, 25};
 
     private SpigotVersions() {
     }
 
     /**
-     * The lowest Java version the given Spigot version supports. The metadata lists class file
-     * versions (52 = Java 8); versions without the field (1.8 - 1.11) are built and run with Java 8.
+     * The Java version to build and run the given Spigot version with. BuildTools' metadata lists
+     * the supported range as class file versions (52 = Java 8); versions without it (1.8 - 1.11)
+     * use Java 8.
      */
     static int requiredJava(String version, File cacheDir) {
         File metadata = new File(cacheDir, "versions/" + version + ".json");
@@ -34,11 +37,33 @@ final class SpigotVersions {
             download(VERSIONS_URL + version + ".json", metadata);
         }
         try {
-            Matcher m = JAVA_VERSIONS.matcher(Files.readString(metadata.toPath()));
-            return m.find() ? Math.max(8, Integer.parseInt(m.group(1)) - 44) : 8;
+            return javaFromMetadata(Files.readString(metadata.toPath()));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    static int javaFromMetadata(String json) {
+        Matcher m = JAVA_VERSIONS.matcher(json);
+        if (!m.find()) {
+            return 8;
+        }
+        int min = Integer.parseInt(m.group(1)) - 44;
+        int max = m.group(2) == null ? Integer.MAX_VALUE : Integer.parseInt(m.group(2)) - 44;
+        return pickJava(min, max);
+    }
+
+    /**
+     * The lowest LTS release in [min, max], or min if the range has none. E.g. Spigot 1.17 allows
+     * Java 16-17: 17 is the better choice, since Java 16 builds don't exist for every platform.
+     */
+    static int pickJava(int min, int max) {
+        for (int lts : LTS) {
+            if (lts >= min && lts <= max) {
+                return lts;
+            }
+        }
+        return Math.max(8, min);
     }
 
     static void download(String url, File target) {

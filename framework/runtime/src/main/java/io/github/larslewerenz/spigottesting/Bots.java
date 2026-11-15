@@ -37,6 +37,8 @@ public final class Bots {
             }
             ServerTest.awaitTicks(1);
         }
+        // Let the server process the client's spawn confirmation before the test talks to it.
+        ServerTest.awaitTicks(2);
         Bot bot = new Bot(name, player);
         ONLINE.add(bot);
         return bot;

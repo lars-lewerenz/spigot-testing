@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
@@ -32,6 +33,7 @@ import org.gradle.workers.WorkerExecutor;
  * cached outside the project, so each version is built only once per machine. BuildTools runs in
  * a Gradle worker, so several versions build in parallel.
  */
+@DisableCachingByDefault(because = "Spigot jars are cached outside the build, per machine")
 public abstract class BuildSpigotTask extends DefaultTask {
 
     static final String BUILD_TOOLS_URL =

@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
@@ -22,6 +23,7 @@ import org.gradle.api.tasks.TaskAction;
  * Downloads the latest Paper build of a Minecraft version, checks its SHA-256 and caches it, so
  * each version is downloaded once per machine. Delete the cached jar to get a newer build.
  */
+@DisableCachingByDefault(because = "Paper jars are cached outside the build, per machine")
 public abstract class DownloadPaperTask extends DefaultTask {
 
     @Input

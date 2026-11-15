@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
@@ -48,6 +49,7 @@ import org.gradle.workers.WorkerExecutor;
  * has run the tests and stopped the server, and reports the results. The server runs in a Gradle
  * worker, so the servers of different versions run in parallel.
  */
+@DisableCachingByDefault(because = "Runs tests on a live server; results are not reusable")
 public abstract class ServerTestTask extends DefaultTask {
 
     @Input
@@ -111,9 +113,7 @@ public abstract class ServerTestTask extends DefaultTask {
     @TaskAction
     public void run() {
         if (!getAcceptEula().get()) {
-            throw new GradleException("Running a Minecraft server requires accepting the Minecraft EULA "
-                    + "(https://aka.ms/MinecraftEULA). If you accept it, set the Gradle property "
-                    + "spigotTesting.acceptEula=true (e.g. -PspigotTesting.acceptEula=true or in ~/.gradle/gradle.properties).");
+            throw new GradleException(CheckEula.MESSAGE);
         }
         JavaLauncher launcher = getJavaLauncher().get();
         getWorkers().noIsolation().submit(Work.class, p -> {
@@ -249,18 +249,33 @@ public abstract class ServerTestTask extends DefaultTask {
                     .directory(serverDir)
                     .redirectErrorStream(true)
                     .start();
-            Thread pump = new Thread(() -> pumpOutput(version, process.getInputStream(), log), "spigot-testing-output-" + version.replace(' ', '-'));
+            ServerWatch watch = new ServerWatch();
+            Thread pump = new Thread(() -> pumpOutput(version, process.getInputStream(), log, watch),
+                    "spigot-testing-output-" + version.replace(' ', '-'));
             pump.start();
 
             Duration timeout = p.getRunTimeout().get();
-            if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroy();
-                if (!process.waitFor(15, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
+            long deadline = System.nanoTime() + timeout.toNanos();
+            boolean stopRequested = false;
+            while (!process.waitFor(1, TimeUnit.SECONDS)) {
+                if (System.nanoTime() > deadline) {
+                    process.destroy();
+                    if (!process.waitFor(15, TimeUnit.SECONDS)) {
+                        process.destroyForcibly();
+                    }
+                    pump.join(5000);
+                    throw new GradleException(version + " did not finish within " + timeout
+                            + ". Server log: " + log + "\n" + Logs.problems(log, 30));
                 }
-                pump.join(5000);
-                throw new GradleException(version + " did not finish within " + timeout
-                        + ". Server log: " + log + "\n" + Logs.tail(log, 40));
+                if (!stopRequested && watch.harnessMissing()) {
+                    // The harness never started (usually because the plugin under test could not
+                    // be loaded, so the harness that depends on it wasn't either): stop the server
+                    // instead of idling until the timeout.
+                    stopRequested = true;
+                    LOGGER.lifecycle("[{}] The test harness did not start; stopping the server", version);
+                    process.getOutputStream().write("stop\n".getBytes(StandardCharsets.UTF_8));
+                    process.getOutputStream().flush();
+                }
             }
             pump.join(5000);
             report(version, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
@@ -326,7 +341,30 @@ public abstract class ServerTestTask extends DefaultTask {
         }
 
         /** Writes the server output to the log file and shows the harness' test lines in the build output. */
-        private static void pumpOutput(String version, InputStream output, File log) {
+        /** What the server output has shown so far. */
+        static final class ServerWatch {
+            /** How long the harness gets after the server is up to announce its test run. */
+            static final long HARNESS_GRACE_NANOS = TimeUnit.SECONDS.toNanos(30);
+
+            private volatile long startedAt;
+            private volatile boolean harnessStarted;
+
+            void line(String line) {
+                // "Done (1.234s)! For help, type "help"": the startup line of every version.
+                if (startedAt == 0 && line.contains("Done (") && line.contains("For help")) {
+                    startedAt = System.nanoTime();
+                }
+                if (line.contains(MARKER)) {
+                    harnessStarted = true;
+                }
+            }
+
+            boolean harnessMissing() {
+                return startedAt != 0 && !harnessStarted && System.nanoTime() - startedAt > HARNESS_GRACE_NANOS;
+            }
+        }
+
+        private static void pumpOutput(String version, InputStream output, File log, ServerWatch watch) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(output, StandardCharsets.UTF_8));
                     BufferedWriter writer = Files.newBufferedWriter(log.toPath(), StandardCharsets.UTF_8)) {
                 String line;
@@ -334,6 +372,7 @@ public abstract class ServerTestTask extends DefaultTask {
                     writer.write(line);
                     writer.newLine();
                     writer.flush();
+                    watch.line(line);
                     int marker = line.indexOf(MARKER);
                     if (marker >= 0) {
                         String message = line.substring(marker + MARKER.length());
@@ -352,8 +391,8 @@ public abstract class ServerTestTask extends DefaultTask {
             if (!summaryFile.isFile()) {
                 File error = new File(resultsDir, "error.txt");
                 throw new GradleException(version + " stopped without test results"
-                        + (error.isFile() ? ":\n" + Files.readString(error.toPath()) : " (did the plugin under test fail to enable?)")
-                        + "\nServer log: " + log + "\n" + Logs.tail(log, 40));
+                        + (error.isFile() ? ":\n" + Files.readString(error.toPath()) : " (did the plugin under test fail to load or enable?)")
+                        + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
             }
             Properties summary = new Properties();
             try (var in = Files.newInputStream(summaryFile.toPath())) {

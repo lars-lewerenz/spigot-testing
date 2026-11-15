@@ -9,7 +9,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.geysermc.mcprotocollib.network.ClientSession;
 import org.geysermc.mcprotocollib.network.Session;
 import org.geysermc.mcprotocollib.network.event.session.DisconnectedEvent;
@@ -28,7 +27,6 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.C
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory.ServerboundContainerClickPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.inventory.ServerboundContainerClosePacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundDisguisedChatPacket;
-import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundLoginPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundPlayerChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.ClientboundSystemChatPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.entity.player.ClientboundPlayerPositionPacket;
@@ -42,7 +40,6 @@ final class Bot {
 
     private static final long JOIN_TIMEOUT_SECONDS = 10;
     private static final int JOIN_ATTEMPTS = 3;
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
 
     private final String name;
     private final ClientSession session;
@@ -62,7 +59,8 @@ final class Bot {
     }
 
     /**
-     * Connects and returns once the server has sent the join (login) packet. A join that stalls is
+     * Connects and returns once the player has spawned (its spawn position is confirmed); some
+     * versions ignore commands from a player before that. A join that stalls is
      * retried: through ViaProxy, a quick reconnect with the same name occasionally hangs in the
      * configuration phase although the server has already logged the player in.
      */
@@ -170,9 +168,7 @@ final class Bot {
 
         @Override
         public void packetReceived(Session session, Packet packet) {
-            if (packet instanceof ClientboundLoginPacket) {
-                joined.complete(null);
-            } else if (packet instanceof ClientboundPlayerPositionPacket position) {
+            if (packet instanceof ClientboundPlayerPositionPacket position) {
                 // Confirm the server-side teleports, like a real client.
                 session.send(new ServerboundAcceptTeleportationPacket(position.getId(),
                         position.getPosition().getX(), position.getPosition().getY(), position.getPosition().getZ(),
@@ -180,9 +176,12 @@ final class Bot {
                 if (!loaded) {
                     loaded = true;
                     session.send(ServerboundPlayerLoadedPacket.INSTANCE);
+                    // Only now is the player fully in the game: some versions ignore commands
+                    // from a player that has not confirmed its spawn position yet.
+                    joined.complete(null);
                 }
             } else if (packet instanceof ClientboundOpenScreenPacket screen) {
-                containerOpened(screen.getContainerId(), LEGACY.serialize(screen.getTitle()));
+                containerOpened(screen.getContainerId(), ChatText.legacy(screen.getTitle()));
             } else if (packet instanceof ClientboundContainerSetContentPacket content) {
                 containerState(content.getContainerId(), content.getStateId());
             } else if (packet instanceof ClientboundContainerSetSlotPacket slot) {
@@ -190,18 +189,18 @@ final class Bot {
             } else if (packet instanceof ClientboundContainerClosePacket) {
                 containerClosed();
             } else if (packet instanceof ClientboundSystemChatPacket chat && !chat.isOverlay()) {
-                record(LEGACY.serialize(chat.getContent()));
+                record(ChatText.legacy(chat.getContent()));
             } else if (packet instanceof ClientboundPlayerChatPacket chat) {
                 Component content = chat.getUnsignedContent() != null ? chat.getUnsignedContent() : Component.text(chat.getContent());
-                record("<" + LEGACY.serialize(chat.getName()) + "> " + LEGACY.serialize(content));
+                record("<" + ChatText.legacy(chat.getName()) + "> " + ChatText.legacy(content));
             } else if (packet instanceof ClientboundDisguisedChatPacket chat) {
-                record("<" + LEGACY.serialize(chat.getName()) + "> " + LEGACY.serialize(chat.getMessage()));
+                record("<" + ChatText.legacy(chat.getName()) + "> " + ChatText.legacy(chat.getMessage()));
             }
         }
 
         @Override
         public void disconnected(DisconnectedEvent event) {
-            String reason = LEGACY.serialize(event.getReason());
+            String reason = ChatText.legacy(event.getReason());
             joined.completeExceptionally(event.getCause() != null
                     ? new IllegalStateException(reason, event.getCause())
                     : new IllegalStateException("disconnected: " + reason));

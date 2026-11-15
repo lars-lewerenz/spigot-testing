@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag like v0.1.0 on a commit whose CI run passed.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write  # create the GitHub release
+  packages: write  # publish to GitHub Packages
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test the framework
+        run: ./gradlew -p framework build -PreleaseVersion=${{ steps.version.outputs.version }}
+
+      - name: Publish to GitHub Packages
+        run: ./gradlew -p framework publishAllPublicationsToGitHubPackagesRepository -PreleaseVersion=${{ steps.version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        run: |
+          notes=$(awk -v v="$VERSION" '$0 ~ "^## \\[?" v "\\]?" {found=1; next} found && /^## / {exit} found' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" \
+            --title "spigot-testing $VERSION" \
+            --notes "${notes:-See CHANGELOG.md}" \
+            framework/gradle-plugin/build/libs/spigot-testing-gradle-plugin-$VERSION.jar \
+            framework/runtime/build/libs/spigot-testing-runtime-$VERSION.jar \
+            framework/runtime/build/libs/spigot-testing-runtime-$VERSION-sources.jar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}

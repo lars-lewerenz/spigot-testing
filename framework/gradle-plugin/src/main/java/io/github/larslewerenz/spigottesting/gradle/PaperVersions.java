@@ -20,26 +20,39 @@ final class PaperVersions {
     private PaperVersions() {
     }
 
-    /** The Java version Paper declares as minimum for the given version. */
+    /**
+     * The Java version to run the given Paper version with: the lowest LTS release at or above the
+     * minimum PaperMC declares (PaperMC gives no maximum).
+     */
     static int requiredJava(String version, File cacheDir) {
         File metadata = new File(cacheDir, "paper/versions/" + version + ".json");
         if (!metadata.isFile()) {
             SpigotVersions.download(API + version, metadata);
         }
-        Matcher m = JAVA_MINIMUM.matcher(read(metadata));
+        return javaFromMetadata(read(metadata), version);
+    }
+
+    static int javaFromMetadata(String json, String version) {
+        Matcher m = JAVA_MINIMUM.matcher(json);
         if (!m.find()) {
-            throw new GradleException("No Java version in PaperMC's metadata for " + version + " (" + metadata + ")");
+            throw new GradleException("No Java version in PaperMC's metadata for " + version);
         }
-        return Integer.parseInt(m.group(1));
+        int minimum = Integer.parseInt(m.group(1));
+        return SpigotVersions.pickJava(minimum, Integer.MAX_VALUE);
     }
 
     /** The latest build's download URL and SHA-256. */
     static String[] latestBuild(String version, File cacheDir) {
         File build = new File(cacheDir, "paper/builds/" + version + "-latest.json");
         SpigotVersions.download(API + version + "/builds/latest", build);
-        Matcher m = DOWNLOAD.matcher(read(build));
+        return downloadFromBuild(read(build), version);
+    }
+
+    /** URL and SHA-256 of the server jar in a build's metadata. */
+    static String[] downloadFromBuild(String json, String version) {
+        Matcher m = DOWNLOAD.matcher(json);
         if (!m.find()) {
-            throw new GradleException("No server download in PaperMC's latest build of " + version + " (" + build + ")");
+            throw new GradleException("No server download in PaperMC's latest build of " + version);
         }
         return new String[] {m.group(2), m.group(1)};
     }

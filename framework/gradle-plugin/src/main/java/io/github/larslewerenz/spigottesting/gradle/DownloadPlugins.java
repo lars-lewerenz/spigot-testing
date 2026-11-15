@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.provider.ListProperty;
@@ -20,6 +21,7 @@ import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 
 /** Downloads the plugins listed in {@code spigotTesting.pluginUrls}, cached per URL. */
+@DisableCachingByDefault(because = "Downloads are cached outside the build, per machine")
 public abstract class DownloadPlugins extends DefaultTask {
 
     @Input

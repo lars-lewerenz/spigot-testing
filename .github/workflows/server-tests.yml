@@ -1,0 +1,93 @@
+name: Server tests
+
+# Runs the example plugin's server tests on a list of servers, one job each.
+# Used by ci.yml (core servers) and compatibility.yml (every major version).
+on:
+  workflow_call:
+    inputs:
+      servers:
+        description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}]'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  server-test:
+    name: ${{ matrix.server }} ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.servers) }}
+    env:
+      SPIGOT_CACHE: ~/.gradle/caches/spigot-testing
+      # Lets Gradle's toolchains use the JDKs installed below instead of downloading them.
+      JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          # Every server runs on one of these LTS releases. The last one runs Gradle.
+          java-version: |
+            8
+            17
+            25
+            21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Task names
+        id: names
+        # The version is passed on the command line, so any version works, whatever the build
+        # script lists.
+        run: |
+          id="${VERSION//./_}"
+          if [ "$SERVER" = "Paper" ]; then
+            echo "versions=-PspigotTesting.versions= -PspigotTesting.paperVersions=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "task=serverTest_paper_$id" >> "$GITHUB_OUTPUT"
+            echo "dir=paper-$VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "versions=-PspigotTesting.versions=$VERSION -PspigotTesting.paperVersions=" >> "$GITHUB_OUTPUT"
+            echo "task=serverTest_$id" >> "$GITHUB_OUTPUT"
+            echo "build=buildSpigot_$id" >> "$GITHUB_OUTPUT"
+            echo "dir=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SERVER: ${{ matrix.server }}
+          VERSION: ${{ matrix.version }}
+
+      # Building Spigot with BuildTools takes a few minutes, so the jar is cached. (Paper is a
+      # quick download.) Bump the "v1" to force a rebuild, e.g. to pick up new Spigot builds.
+      - name: Restore Spigot ${{ matrix.version }}
+        if: matrix.server == 'Spigot'
+        id: spigot-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
+            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
+          key: spigot-${{ matrix.version }}-v1
+      - name: Build Spigot ${{ matrix.version }}
+        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
+        run: ./gradlew :example-plugin:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
+      - name: Save Spigot ${{ matrix.version }}
+        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
+            ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
+          key: spigot-${{ matrix.version }}-v1
+
+      - name: Run server tests
+        run: >-
+          ./gradlew :example-plugin:${{ steps.names.outputs.task }} -PspigotTesting.acceptEula=true
+          ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
+      - name: Upload server logs and reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: server-test-results-${{ matrix.server }}-${{ matrix.version }}
+          path: example-plugin/build/spigot-testing/${{ steps.names.outputs.dir }}/results/

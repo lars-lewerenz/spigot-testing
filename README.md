@@ -63,14 +63,22 @@ BUILD SUCCESSFUL in 30s
 
 ### Supported servers
 
-Everything below runs in this repo's CI on every push — the example plugin's full test suite on 8 servers.
+Every major Minecraft version from 1.8.8 to 26.3, on **Spigot** and **Paper** — 36 servers, all
+running the example plugin's full suite:
 
-| Server | Versions tested here | Java | Where the jar comes from |
-|---|---|---|---|
-| **Spigot** | 1.8.8 · 1.12.2 · 1.20.4 · 1.21.11 · 26.3 | 8 · 8 · 17 · 21 · 25 | built with [BuildTools](https://www.spigotmc.org/wiki/buildtools/), cached |
-| **Paper** | 1.8.8 · 1.21.11 · 26.3 | 8 · 21 · 25 | downloaded from [PaperMC](https://papermc.io/downloads), cached |
+| | 1.8.8 | 1.9.4 | 1.10.2 | 1.11.2 | 1.12.2 | 1.13.2 | 1.14.4 | 1.15.2 | 1.16.5 | 1.17.1 | 1.18.2 | 1.19.4 | 1.20.4 | 1.20.6 | 1.21.4 | 1.21.11 | 26.1.2 | 26.3 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **Spigot** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Paper**  | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Java**   | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 17 | 17 | 17 | 17 | 21 | 21 | 21 | 25 | 25 |
 
-Other versions in between work the same way — list them and go.
+- **Spigot** is built with [BuildTools](https://www.spigotmc.org/wiki/buildtools/) (its jars can't
+  be redistributed), **Paper** is downloaded from [PaperMC](https://papermc.io/downloads) and
+  checked against its SHA-256. Both are cached per machine.
+- **Java** is picked per server: the lowest LTS release the server supports, read from the
+  server's own metadata.
+- CI tests 8 of them on every push; the [compatibility workflow](.github/workflows/compatibility.yml)
+  runs all 36 on demand. Versions in between work the same way — just list them.
 
 ## 🚀 Quick start
 
@@ -135,7 +143,12 @@ class MyPluginTest {
 | `./gradlew serverTest_paper_26_3` | … on Paper 26.3 only |
 | `./gradlew check` | all of it |
 
-Add `--continue` to see every server's results even when one of them fails.
+Add `--continue` to see every server's results even when one of them fails. To pick servers for
+one run without touching the build script — e.g. in a CI matrix:
+
+```bash
+./gradlew serverTest -PspigotTesting.versions=1.8.8,1.21.11 -PspigotTesting.paperVersions=
+```
 
 ## ✍️ Writing tests
 
@@ -382,6 +395,15 @@ For each server, `serverTest_<version>`:
    Results stream into the build output; JUnit XML reports and the server log land in
    `build/spigot-testing/<server>/results`.
 
+## 🩺 Troubleshooting
+
+| Symptom | What's going on |
+|---|---|
+| `… stopped without test results (did the plugin under test fail to load or enable?)` | Your plugin didn't load on that server, so the test harness (which depends on it) didn't either. The message lists the errors from the server log — e.g. `UnsupportedClassVersionError` when the plugin is compiled for a newer Java than that server runs (use `options.release`). |
+| `Running a Minecraft server requires accepting the Minecraft EULA` | Set `spigotTesting.acceptEula=true` (see [Quick start](#-quick-start)). Checked before any server is built. |
+| A test passes on one version and fails on another | That's what this is for. 🙂 The server log and JUnit XML report are in `build/spigot-testing/<server>/results`. |
+| Tests can't use package-private plugin classes | Tests are loaded by a different class loader than your plugin; use its public API. |
+
 ## 📁 Repository layout
 
 ```text
@@ -393,28 +415,51 @@ example-plugin/            "Greeter": /greet, a /menu GUI, welcome messages, cre
                            night skipping, a PlaceholderAPI placeholder — and tests for all of it
 ```
 
-## 📦 Using it in another project
+## 📦 Installation
 
-Until it's published, install it into your local Maven repository:
-
-```bash
-./gradlew -p framework publishToMavenLocal
-```
+Releases are published to **GitHub Packages** ([releases](https://github.com/lars-lewerenz/spigot-testing/releases)).
+GitHub Packages needs a token with `read:packages` even for reading — e.g. as `gpr.user` /
+`gpr.key` in `~/.gradle/gradle.properties`:
 
 ```kotlin
 // settings.gradle.kts
 pluginManagement {
-    repositories { mavenLocal(); gradlePluginPortal() }
+    repositories {
+        gradlePluginPortal()
+        maven("https://maven.pkg.github.com/lars-lewerenz/spigot-testing") {
+            credentials {
+                username = providers.gradleProperty("gpr.user").get()
+                password = providers.gradleProperty("gpr.key").get()
+            }
+        }
+    }
 }
-
-// build.gradle.kts
-plugins { id("io.github.lars-lewerenz.spigot-testing") version "0.1.0-SNAPSHOT" }
-repositories {
-    mavenLocal()
-    mavenCentral()
-    maven("https://hub.spigotmc.org/nexus/content/groups/public/")
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven("https://hub.spigotmc.org/nexus/content/groups/public/")
+        maven("https://maven.pkg.github.com/lars-lewerenz/spigot-testing") {
+            credentials {
+                username = providers.gradleProperty("gpr.user").get()
+                password = providers.gradleProperty("gpr.key").get()
+            }
+        }
+    }
 }
 ```
+
+```kotlin
+// build.gradle.kts
+plugins {
+    java
+    id("io.github.lars-lewerenz.spigot-testing") version "0.1.0"
+}
+```
+
+Or build it yourself: `./gradlew -p framework publishToMavenLocal` and use `mavenLocal()`.
 
 ## 🧭 Limitations & ideas
 
@@ -423,5 +468,7 @@ repositories {
 - **Offline mode:** bots join with unsigned chat on servers running `online-mode=false`.
 - **Same plugins everywhere:** other plugins are installed on every server, so pick versions that
   cover your whole range.
+- **Latest builds:** Paper jars (and BuildTools' Spigot) are the latest build of a version at the
+  time they're first cached. Delete `~/.gradle/caches/spigot-testing/servers` to refresh.
 - **Ideas:** client-side movement and block interaction, what the client sees beyond chat (titles,
   scoreboards, boss bars), restarting the server within a test run to check persistence.

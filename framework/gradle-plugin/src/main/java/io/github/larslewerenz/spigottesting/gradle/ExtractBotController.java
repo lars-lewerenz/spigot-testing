@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import org.gradle.api.DefaultTask;
+import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -13,6 +14,7 @@ import org.gradle.api.tasks.TaskAction;
  * Copies the bot controller jar that ships inside this plugin to the build directory, once per
  * build, before the server test tasks start their controllers from it.
  */
+@DisableCachingByDefault(because = "Copying a resource is faster than the build cache")
 public abstract class ExtractBotController extends DefaultTask {
 
     static final String RESOURCE = "spigot-testing-bots.jar";

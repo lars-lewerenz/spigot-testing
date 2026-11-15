@@ -18,6 +18,16 @@ gradlePlugin {
     }
 }
 
+// Unit tests and Gradle TestKit tests (java-gradle-plugin wires TestKit and the plugin under test).
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:5.14.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+tasks.test {
+    useJUnitPlatform()
+}
+
 // The bot controller (MCProtocolLib + dependencies) as one jar, shipped inside this plugin.
 val botsJar = configurations.dependencyScope("botsJar")
 val botsJarFiles = configurations.resolvable("botsJarFiles") {
