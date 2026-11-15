@@ -2,7 +2,9 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         maven("https://hub.spigotmc.org/nexus/content/groups/public/")
-        maven("https://repo.opencollab.dev/main/") {
+        // "maven-releases" rather than the "main" group: from GitHub Actions, the CDN in front of
+        // "main" answered 404 for text-serializer-nbt-0.2.1.jar although the file exists.
+        maven("https://repo.opencollab.dev/maven-releases/") {
             // MCProtocolLib and the libraries it needs that are not on Maven Central
             content { includeGroupByRegex("org\\.geysermc\\..*|org\\.cloudburstmc(\\..*)?|com\\.nukkitx\\..*") }
         }
