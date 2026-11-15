@@ -21,6 +21,8 @@ spigotTesting {
 ./gradlew check                # both
 ```
 
+Add `--continue` to see the results of every version even when one of them fails.
+
 ## Two kinds of tests
 
 | | Unit tests | Server tests |

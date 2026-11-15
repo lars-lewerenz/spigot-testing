@@ -8,14 +8,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.larslewerenz.spigottesting.CommandResult;
 import io.github.larslewerenz.spigottesting.OffMainThread;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.Creeper;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Zombie;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 
@@ -55,17 +62,30 @@ class GreeterServerTest {
 
     @Test
     void creeperSpawnsAreCancelled() {
+        // Watch the spawn events after every plugin has handled them, instead of looking for the
+        // entities in the world: newer versions load a chunk's entities asynchronously, so a mob
+        // that did spawn may not be visible through World#getEntities right away.
+        SpawnRecorder recorder = new SpawnRecorder();
+        Bukkit.getPluginManager().registerEvents(recorder, JavaPlugin.getProvidingPlugin(GreeterServerTest.class));
         World world = Bukkit.getWorlds().get(0);
         Location location = world.getSpawnLocation();
-        location.getChunk().load();
-
-        world.spawnEntity(location, EntityType.CREEPER);
-        Zombie zombie = (Zombie) world.spawnEntity(location, EntityType.ZOMBIE);
+        Entity creeper = world.spawnEntity(location, EntityType.CREEPER);
+        Entity zombie = world.spawnEntity(location, EntityType.ZOMBIE);
         try {
-            assertTrue(world.getEntitiesByClass(Creeper.class).isEmpty(), "a creeper was spawned");
-            assertEquals(1, world.getEntitiesByClass(Zombie.class).size(), "other mobs must still spawn");
+            assertEquals(Arrays.asList("CREEPER cancelled", "ZOMBIE spawned"), recorder.spawns);
         } finally {
+            HandlerList.unregisterAll(recorder);
+            creeper.remove();
             zombie.remove();
+        }
+    }
+
+    public static final class SpawnRecorder implements Listener {
+        final List<String> spawns = new ArrayList<>();
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onSpawn(CreatureSpawnEvent event) {
+            spawns.add(event.getEntityType() + (event.isCancelled() ? " cancelled" : " spawned"));
         }
     }
 
