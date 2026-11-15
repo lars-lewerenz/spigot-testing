@@ -42,6 +42,10 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
     public static final String SOURCE_SET_NAME = "serverTest";
     private static final String GROUP = "verification";
+    /** MCProtocolLib, which the bot controller uses, needs Java 21. */
+    private static final int BOT_JAVA_VERSION = 21;
+    /** Translates the bots' protocol (the newest version) to the version of each test server. */
+    private static final String VIAPROXY_VERSION = "3.4.14";
     private static final boolean APPLE_SILICON = System.getProperty("os.name").startsWith("Mac")
             && System.getProperty("os.arch").equals("aarch64");
 
@@ -68,6 +72,14 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
                 "io.github.lars-lewerenz:spigot-testing-runtime:" + versions.getProperty("version"));
 
         TaskProvider<Jar> harnessJar = registerHarnessJar(project, extension, serverTest);
+        TaskProvider<ExtractBotController> botController = project.getTasks().register(
+                "extractBotController", ExtractBotController.class, task ->
+                        task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/spigot-testing-bots.jar")));
+        TaskProvider<DownloadViaProxy> viaProxy = project.getTasks().register("downloadViaProxy", DownloadViaProxy.class, task -> {
+            task.getUrl().set("https://github.com/ViaVersion/ViaProxy/releases/download/v"
+                    + VIAPROXY_VERSION + "/ViaProxy-" + VIAPROXY_VERSION + ".jar");
+            task.getJar().set(extension.getCacheDirectory().map(dir -> dir.file("viaproxy/ViaProxy-" + VIAPROXY_VERSION + ".jar")));
+        });
 
         TaskProvider<Task> allServerTests = project.getTasks().register("serverTest", task -> {
             task.setGroup(GROUP);
@@ -78,7 +90,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         // One task pair per version, so the version list has to be known.
         project.afterEvaluate(p -> {
             for (String version : extension.getVersions().get()) {
-                TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, version);
+                TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, botController, viaProxy, version);
                 allServerTests.configure(t -> t.dependsOn(task));
             }
         });
@@ -136,7 +148,8 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
     }
 
     private TaskProvider<ServerTestTask> registerVersion(Project project, SpigotTestingExtension extension,
-            TaskProvider<Jar> harnessJar, String version) {
+            TaskProvider<Jar> harnessJar, TaskProvider<ExtractBotController> botController,
+            TaskProvider<DownloadViaProxy> viaProxy, String version) {
         String id = version.replaceAll("[^A-Za-z0-9]", "_");
         Provider<Directory> cache = extension.getCacheDirectory();
         Provider<JavaLauncher> launcher = cache.flatMap(dir -> {
@@ -167,6 +180,10 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getPluginJar().set(extension.getPluginJar());
             task.getHarnessJar().set(harnessJar.flatMap(Jar::getArchiveFile));
             task.getJavaLauncher().set(launcher);
+            task.getBotControllerJar().set(botController.flatMap(ExtractBotController::getJar));
+            task.getBotJavaLauncher().set(getToolchains().launcherFor(spec ->
+                    spec.getLanguageVersion().set(JavaLanguageVersion.of(BOT_JAVA_VERSION))));
+            task.getViaProxyJar().set(viaProxy.flatMap(DownloadViaProxy::getJar));
             task.getAcceptEula().set(extension.getAcceptEula());
             task.getJvmArgs().set(extension.getJvmArgs());
             task.getRunTimeout().set(extension.getTimeout());

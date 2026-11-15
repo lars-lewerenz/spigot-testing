@@ -66,6 +66,19 @@ public abstract class ServerTestTask extends DefaultTask {
     @Nested
     public abstract Property<JavaLauncher> getJavaLauncher();
 
+    /** The bot controller (fake players), started next to the server. */
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract RegularFileProperty getBotControllerJar();
+
+    @Nested
+    public abstract Property<JavaLauncher> getBotJavaLauncher();
+
+    /** Lets the bots join every server version; started by the bot controller on first use. */
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    public abstract RegularFileProperty getViaProxyJar();
+
     @Input
     public abstract Property<Boolean> getAcceptEula();
 
@@ -96,6 +109,9 @@ public abstract class ServerTestTask extends DefaultTask {
             p.getMinecraftVersion().set(getMinecraftVersion());
             p.getJavaExecutable().set(launcher.getExecutablePath());
             p.getJavaVersion().set(launcher.getMetadata().getLanguageVersion().asInt());
+            p.getBotControllerJar().set(getBotControllerJar());
+            p.getBotJavaExecutable().set(getBotJavaLauncher().get().getExecutablePath());
+            p.getViaProxyJar().set(getViaProxyJar());
             p.getServerJar().set(getServerJar());
             p.getPluginJar().set(getPluginJar());
             p.getHarnessJar().set(getHarnessJar());
@@ -112,6 +128,12 @@ public abstract class ServerTestTask extends DefaultTask {
         RegularFileProperty getJavaExecutable();
 
         Property<Integer> getJavaVersion();
+
+        RegularFileProperty getBotControllerJar();
+
+        RegularFileProperty getBotJavaExecutable();
+
+        RegularFileProperty getViaProxyJar();
 
         RegularFileProperty getServerJar();
 
@@ -155,17 +177,51 @@ public abstract class ServerTestTask extends DefaultTask {
             String version = p.getMinecraftVersion().get();
             File serverDir = p.getServerDirectory().get().getAsFile();
             File resultsDir = p.getResultsDirectory().get().getAsFile();
-            prepareServerDirectory(serverDir.toPath());
+            int serverPort = prepareServerDirectory(serverDir.toPath());
             getFiles().delete(spec -> spec.delete(resultsDir));
             resultsDir.mkdirs();
             File log = new File(resultsDir, "server.log");
 
+            int botPort = freePort();
+            Process botController = startBotController(botPort, serverPort, resultsDir);
+            try {
+                runServer(version, serverDir, resultsDir, log, botPort);
+            } finally {
+                botController.getOutputStream().close(); // makes the controller exit
+                if (!botController.waitFor(10, TimeUnit.SECONDS)) {
+                    botController.destroyForcibly();
+                }
+            }
+        }
+
+        /** Started for every run (it is small); ViaProxy is only started once a test uses bots. */
+        private Process startBotController(int controlPort, int serverPort, File resultsDir) throws IOException {
+            Params p = getParameters();
+            File workDir = new File(resultsDir, "bots");
+            workDir.mkdirs();
+            return new ProcessBuilder(
+                    p.getBotJavaExecutable().get().getAsFile().getAbsolutePath(),
+                    "-jar", p.getBotControllerJar().get().getAsFile().getAbsolutePath(),
+                    String.valueOf(controlPort),
+                    String.valueOf(freePort()),
+                    String.valueOf(serverPort),
+                    p.getViaProxyJar().get().getAsFile().getAbsolutePath(),
+                    workDir.getAbsolutePath())
+                    .redirectErrorStream(true)
+                    .redirectOutput(new File(resultsDir, "bot-controller.log"))
+                    .start();
+        }
+
+        private void runServer(String version, File serverDir, File resultsDir, File log, int botPort)
+                throws IOException, InterruptedException {
+            Params p = getParameters();
             List<String> command = new ArrayList<>();
             command.add(p.getJavaExecutable().get().getAsFile().getAbsolutePath());
             command.addAll(p.getJvmArgs().get());
             command.add("-Djava.awt.headless=true");
             command.add("-DIReallyKnowWhatIAmDoingISwear=true"); // skips the 20 s "outdated build" delay
             command.add("-Dspigottesting.outputDir=" + resultsDir.getAbsolutePath());
+            command.add("-Dspigottesting.bots.port=" + botPort);
             command.add("-jar");
             command.add(p.getServerJar().get().getAsFile().getAbsolutePath());
             command.add("nogui");
@@ -193,7 +249,14 @@ public abstract class ServerTestTask extends DefaultTask {
             report(version, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
         }
 
-        private void prepareServerDirectory(Path dir) throws IOException {
+        private static int freePort() throws IOException {
+            try (ServerSocket socket = new ServerSocket(0)) {
+                return socket.getLocalPort();
+            }
+        }
+
+        /** Writes a fresh server configuration and returns the server's port. */
+        private int prepareServerDirectory(Path dir) throws IOException {
             Files.createDirectories(dir);
             try (var entries = Files.list(dir)) {
                 for (Path entry : (Iterable<Path>) entries::iterator) {
@@ -202,10 +265,7 @@ public abstract class ServerTestTask extends DefaultTask {
                     }
                 }
             }
-            int port;
-            try (ServerSocket socket = new ServerSocket(0)) {
-                port = socket.getLocalPort();
-            }
+            int port = freePort();
             Files.writeString(dir.resolve("eula.txt"), "eula=true\n");
             Files.writeString(dir.resolve("server.properties"), String.join("\n",
                     "online-mode=false",
@@ -220,7 +280,11 @@ public abstract class ServerTestTask extends DefaultTask {
                     "spawn-protection=0",
                     "view-distance=4",
                     "simulation-distance=4",
-                    "max-players=1",
+                    "max-players=100",
+                    "enforce-secure-profile=false", // bots send unsigned chat
+                    "prevent-proxy-connections=false",
+                    "white-list=false", // 26.x enables the whitelist by default
+                    "enforce-whitelist=false",
                     "enable-query=false",
                     "enable-rcon=false",
                     "snooper-enabled=false",
@@ -237,6 +301,7 @@ public abstract class ServerTestTask extends DefaultTask {
             Params p = getParameters();
             Files.copy(p.getPluginJar().get().getAsFile().toPath(), plugins.resolve("plugin-under-test.jar"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(p.getHarnessJar().get().getAsFile().toPath(), plugins.resolve("spigot-testing-harness.jar"), StandardCopyOption.REPLACE_EXISTING);
+            return port;
         }
 
         /** Writes the server output to the log file and shows the harness' test lines in the build output. */

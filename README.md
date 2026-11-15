@@ -72,6 +72,47 @@ class GreeterServerTest {
   plugin's **public** API, even from the same package.
 - Compile the tests for the oldest Java you target (`options.release = 8` for 1.8.8 – 1.16.5).
 
+## Fake players (bots)
+
+`Bots.join(name)` connects a bot client to the test server over the real network protocol. The
+server goes through its normal login, so your plugin sees a real player: `PlayerLoginEvent`,
+`PlayerJoinEvent`, permissions, commands, chat, inventory, teleports, quitting.
+
+```java
+@OffMainThread // bots wait for the server, so it has to keep ticking
+class GreeterPlayerTest {
+
+    @Test
+    void joiningPlayersAreWelcomed() {
+        Bot alex = Bots.join("Alex");
+
+        assertEquals(ChatColor.YELLOW + "Welcome, Alex!", alex.awaitMessage("Welcome"));
+    }
+
+    @Test
+    void chatReachesOtherPlayers() {
+        Bot alex = Bots.join("Alex");
+        Bot bob = Bots.join("Bob");
+
+        alex.chat("hi bob"); // "/..." is sent as a command
+
+        assertTrue(bob.awaitMessage("hi bob").contains("Alex"));
+    }
+}
+```
+
+- `bot.player()` is the server-side Bukkit `Player`; use it inside `ServerTest.sync(...)`.
+- `bot.chat(text)` sends chat or a command (`/greet Steve`) from the client.
+- `bot.messages()` / `bot.awaitMessage(...)` show what the client received, with `§` color codes.
+- `bot.quit()` disconnects and waits until the server has removed the player. Bots still online
+  at the end of a test are disconnected automatically.
+
+The bots use [MCProtocolLib](https://github.com/GeyserMC/MCProtocolLib), which speaks the newest
+protocol, and connect through [ViaProxy](https://github.com/ViaVersion/ViaProxy), which
+translates to the server's version, so the same bots work from 1.8.8 to 26.x. Both run in a
+separate process next to the server (on Java 21, provisioned like the other JDKs); ViaProxy is
+downloaded once into the cache directory and only started when a test uses bots.
+
 ## How it works
 
 For each version, `serverTest_<version>`:
@@ -113,10 +154,11 @@ spigotTesting {
 
 - `framework/` — included Gradle build with the framework itself
   - `gradle-plugin/` — the Gradle plugin `io.github.lars-lewerenz.spigot-testing` (Java 17+)
-  - `runtime/` — the code that runs inside the server: `ServerTest`, `@OffMainThread`, the JUnit
-    runner (Java 8)
-- `example-plugin/` — a small example plugin (`/greet`, blocks creepers, skips the night) with
-  unit tests and server tests
+  - `runtime/` — the code that runs inside the server: `ServerTest`, `@OffMainThread`, `Bots`,
+    the JUnit runner (Java 8)
+  - `bots/` — the bot controller (MCProtocolLib, Java 21), bundled into the Gradle plugin
+- `example-plugin/` — a small example plugin (`/greet`, welcomes players, blocks creepers, skips
+  the night) with unit tests, server tests and tests with bots
 
 ## Using it in another project
 
@@ -148,6 +190,8 @@ download the JDKs the servers need.
 
 ## Limitations
 
-- No players: there is no fake player or client, so things that need a connected player can only
-  be tested through the API around them (commands as console, calling events, worlds, entities).
+- Bots can join, chat, run commands and quit, and they record the chat they receive. They don't
+  move, interact with blocks or click inventories from the client side yet; do that through the
+  server-side `Player` instead.
+- Bots join in offline mode with unsigned chat (the test servers run with `online-mode=false`).
 - Spigot only (built with BuildTools). Paper and other forks are not supported yet.

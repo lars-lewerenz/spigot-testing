@@ -18,10 +18,23 @@ gradlePlugin {
     }
 }
 
+// The bot controller (MCProtocolLib + dependencies) as one jar, shipped inside this plugin.
+val botsJar = configurations.dependencyScope("botsJar")
+val botsJarFiles = configurations.resolvable("botsJarFiles") {
+    extendsFrom(botsJar.get())
+}
+dependencies {
+    botsJar(project(":spigot-testing-bots", configuration = "botsJar"))
+}
+
 tasks.processResources {
     val props = mapOf("version" to project.version.toString(), "junitVersion" to "5.14.4")
     inputs.properties(props)
     filesMatching("**/spigot-testing.properties") {
         expand(props)
+    }
+    from(botsJarFiles) {
+        into("io/github/larslewerenz/spigottesting/gradle")
+        rename { "spigot-testing-bots.jar" }
     }
 }

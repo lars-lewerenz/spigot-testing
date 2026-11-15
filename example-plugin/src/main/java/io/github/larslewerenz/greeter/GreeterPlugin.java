@@ -4,9 +4,11 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class GreeterPlugin extends JavaPlugin implements Listener {
@@ -28,6 +30,12 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
         sender.sendMessage(Greetings.format(getConfig().getString("greeting"), args[0]));
         greetings++;
         return true;
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        player.sendMessage(Greetings.format(getConfig().getString("welcome"), player.getName()));
     }
 
     @EventHandler
