@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.event.Event;
+import org.bukkit.plugin.Plugin;
 
 /**
  * Helpers for tests that run inside a real Spigot server.
@@ -58,6 +59,26 @@ public final class ServerTest {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while waiting for ticks", e);
         }
+    }
+
+    /**
+     * Changes a value in a plugin's in-memory config ({@code plugin.getConfig()}) for the rest of
+     * the test; the old value comes back automatically afterwards. The file on disk is not
+     * changed. Only works for plugins that read their config when they need a value; plugins that
+     * read it once on enable need a reload (e.g. their reload command) to see the change.
+     */
+    public static ConfigChange setConfig(Plugin plugin, String path, Object value) {
+        return ConfigChange.set(plugin, path, value);
+    }
+
+    /** The kind of server the tests run on: {@code "spigot"} or {@code "paper"}. */
+    public static String serverType() {
+        return System.getProperty("spigottesting.serverType", "spigot");
+    }
+
+    /** The Minecraft version the tests run on, as configured in the build, e.g. {@code "1.8.8"}. */
+    public static String minecraftVersion() {
+        return System.getProperty("spigottesting.minecraftVersion", "");
     }
 
     /**

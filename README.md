@@ -18,6 +18,7 @@ Your plugin, on real servers, against real players, on every Minecraft version y
 [Quick start](#-quick-start) ·
 [Writing tests](#%EF%B8%8F-writing-tests) ·
 [Fake players](#-fake-players) ·
+[Server files](#%EF%B8%8F-server-files--configs) ·
 [Other plugins](#-other-plugins) ·
 [Configuration](#%EF%B8%8F-configuration) ·
 [CI](#-ci-on-github-actions) ·
@@ -37,16 +38,16 @@ $ ./gradlew serverTest
 [Spigot 1.8.8]   PASSED GreeterMenuTest > clickingThePaperGreetsAndClosesTheMenu()
 [Paper 26.3]   PASSED GreeterPlayerTest > chatReachesOtherPlayers()
 …
-[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (14 s)
-[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (15 s)
-[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (16 s)
-[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (21 s)
-[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (22 s)
-[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (23 s)
-[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (23 s)
-[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 13 tests, 13 passed, 0 failed, 0 skipped, 0 aborted (26 s)
+[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (14 s)
+[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (15 s)
+[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (16 s)
+[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (22 s)
+[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (22 s)
+[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (23 s)
+[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (21 s)
+[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (26 s)
 
-BUILD SUCCESSFUL in 30s
+BUILD SUCCESSFUL in 33s
 ```
 
 ## ✨ Features
@@ -57,15 +58,16 @@ BUILD SUCCESSFUL in 30s
 | 🕰️ **1.8.8 → 26.x** | Every version runs on the Java it needs (8, 17, 21, 25) — picked from the server's metadata and downloaded by Gradle toolchains. |
 | 🤖 **Fake players** | Bots join over the real network protocol, chat, run commands and receive messages — on every version, through ViaProxy. |
 | 🗃️ **Inventory GUIs** | Bots see the menus your plugin opens and click them; you get genuine `InventoryClickEvent`s. |
+| 🗂️ **Server files** | Whole plugin config folders, custom files and `server.properties` settings, laid onto every server — or only Paper, or only one version. |
 | 🔌 **Other plugins** | Vault, PlaceholderAPI, LuckPerms… installed next to yours from Maven, local files or download URLs. |
 | 🎯 **Just JUnit 5** | Familiar assertions and annotations; JUnit XML reports for your CI. |
 | 🧩 **Unit tests too** | Plain `src/test` tests on the build JVM, with the Spigot API on the classpath. |
-| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 13 tests in ~30 s. |
+| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 17 tests in ~30 s. |
 
 ### Supported servers
 
 Every major Minecraft version from 1.8.8 to 26.3, on **Spigot** and **Paper** — 36 servers, all
-running the example plugin's full suite:
+running the example plugin's full suite (17 tests):
 
 | | 1.8.8 | 1.9.4 | 1.10.2 | 1.11.2 | 1.12.2 | 1.13.2 | 1.14.4 | 1.15.2 | 1.16.5 | 1.17.1 | 1.18.2 | 1.19.4 | 1.20.4 | 1.20.6 | 1.21.4 | 1.21.11 | 26.1.2 | 26.3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -178,6 +180,8 @@ Server tests are plain JUnit 5 classes. A few things to know:
 | `sync(() -> …)` | runs code on the main thread and returns its result (for `@OffMainThread` tests) |
 | `awaitTicks(n)` | lets the server tick `n` times (for `@OffMainThread` tests) |
 | `recordEvents(SomeEvent.class)` | records events after every plugin has handled them → `EventRecorder` |
+| `setConfig(plugin, "path", value)` | changes a value in the plugin's config for this test only → `ConfigChange` |
+| `serverType()` · `minecraftVersion()` | which server the tests run on (`"spigot"`/`"paper"`, e.g. `"1.8.8"`) |
 
 <details>
 <summary><b>Example: commands, events and the scheduler</b></summary>
@@ -219,6 +223,51 @@ class GreeterServerTest {
 ```
 
 </details>
+
+## 🗂️ Server files & configs
+
+Everything in `src/serverTest/server/` is copied into the test server before it starts — whole
+plugin folders with configs, language files, custom data, databases, …:
+
+```text
+src/serverTest/
+├── server/                        ← every server
+│   ├── server.properties          ← merged: only the keys you set (e.g. difficulty=3)
+│   ├── bukkit.yml
+│   └── plugins/
+│       ├── MyPlugin/              ← your plugin's whole folder
+│       │   ├── config.yml
+│       │   ├── messages/en.yml
+│       │   └── arenas/arena1.json
+│       └── LuckPerms/…            ← other plugins' folders
+├── server-paper/                  ← Paper only     ┐
+├── server-1.8.8/                  ← one version    ├ layered on top, later wins
+└── server-paper-26.3/             ← one server     ┘
+```
+
+- Files are copied as they are, subfolders included; later layers replace files of earlier ones.
+  Config formats change between versions (Paper's `paper.yml` became `config/paper-global.yml` in
+  1.19, for example) — that's what the per-type and per-version layers are for.
+- `server.properties` is **merged** into the framework's settings instead of replacing them, so
+  you only list what you want to change. `server-port`, `server-ip` and `online-mode` stay under
+  the framework's control (the bots need them); setting them only logs a warning.
+- The server directory is rebuilt for every run, so files your plugin changes during the tests
+  never leak into the next run.
+
+For a different value in **one test**, change the config in memory; it's restored afterwards:
+
+```java
+@Test
+void creepersSpawnWhenBlockingIsSwitchedOff() {
+    ServerTest.setConfig(plugin, "block-creepers", false); // back to the file's value after the test
+    ...
+}
+```
+
+> [!NOTE]
+> `setConfig` changes `plugin.getConfig()` in memory. Plugins that read a value when they need it
+> see the change immediately; plugins that read their config once on enable need their reload
+> command (or a separate server file layer) instead.
 
 ## 🤖 Fake players
 
@@ -412,8 +461,9 @@ framework/                 the framework (an included Gradle build)
 ├── gradle-plugin/         Gradle plugin io.github.lars-lewerenz.spigot-testing (Java 17+)
 ├── runtime/               runs inside the server: ServerTest, Bots, EventRecorder, JUnit runner (Java 8)
 └── bots/                  bot controller: MCProtocolLib + ViaProxy (Java 21), bundled into the plugin
-example-plugin/            "Greeter": /greet, a /menu GUI, welcome messages, creeper blocking,
-                           night skipping, a PlaceholderAPI placeholder — and tests for all of it
+example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu GUI, welcome messages,
+                           creeper blocking, night skipping, a PlaceholderAPI placeholder — and tests
+                           for all of it
 ```
 
 ## 📦 Installation

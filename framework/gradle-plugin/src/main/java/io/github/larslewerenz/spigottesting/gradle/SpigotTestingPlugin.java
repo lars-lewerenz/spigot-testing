@@ -256,6 +256,15 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getPluginJar().set(extension.getPluginJar());
             task.getHarnessJar().set(harnessJar.flatMap(Jar::getArchiveFile));
             task.getOtherPlugins().from(otherPlugins);
+            Directory sources = project.getLayout().getProjectDirectory().dir("src/" + SOURCE_SET_NAME);
+            List<Directory> layers = List.of(
+                    sources.dir("server"),
+                    sources.dir("server-" + type.id),
+                    sources.dir("server-" + version),
+                    sources.dir("server-" + type.id + "-" + version));
+            task.getServerFileLayers().set(layers);
+            task.getServerFiles().from(layers);
+            task.getServerType().set(type.id);
             task.getJavaLauncher().set(launcher);
             task.getBotControllerJar().set(botController.flatMap(ExtractBotController::getJar));
             task.getBotJavaLauncher().set(getToolchains().launcherFor(spec ->
@@ -271,14 +280,16 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
     /** Spigot (built with BuildTools) or Paper (downloaded from PaperMC). */
     enum ServerType {
-        SPIGOT("Spigot", "", ""),
-        PAPER("Paper", "paper_", "paper-");
+        SPIGOT("spigot", "Spigot", "", ""),
+        PAPER("paper", "Paper", "paper_", "paper-");
 
+        final String id;
         final String displayName;
         final String taskPrefix;
         final String directoryPrefix;
 
-        ServerType(String displayName, String taskPrefix, String directoryPrefix) {
+        ServerType(String id, String displayName, String taskPrefix, String directoryPrefix) {
+            this.id = id;
             this.displayName = displayName;
             this.taskPrefix = taskPrefix;
             this.directoryPrefix = directoryPrefix;

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0]
+
+### Server files & configs
+
+- Everything in `src/serverTest/server/` is copied into each test server before it starts:
+  whole plugin folders, custom files, subfolders, binary data.
+- Layers on top for one server type or version: `server-paper/`, `server-<version>/`,
+  `server-paper-<version>/` (later layers win).
+- `server.properties` from the layers is merged into the framework's settings; `server-port`,
+  `server-ip` and `online-mode` stay under the framework's control.
+- `ServerTest.setConfig(plugin, path, value)` changes a config value for one test and restores
+  it afterwards.
+- `ServerTest.serverType()` and `ServerTest.minecraftVersion()` tell tests where they run.
+
+Tested on all 36 servers (18 versions, Spigot and Paper).
+
 ## [0.1.1]
 
 ### Licensing

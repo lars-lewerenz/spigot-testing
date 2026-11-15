@@ -15,6 +15,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -70,6 +71,22 @@ public abstract class ServerTestTask extends DefaultTask {
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     public abstract RegularFileProperty getHarnessJar();
+
+    /**
+     * Directories laid onto the server directory before the start, in order (later ones win):
+     * src/serverTest/server, server-&lt;type&gt;, server-&lt;version&gt;, server-&lt;type&gt;-&lt;version&gt;.
+     */
+    @Internal
+    public abstract ListProperty<org.gradle.api.file.Directory> getServerFileLayers();
+
+    /** The files of {@link #getServerFileLayers()}, so that changing them reruns the tests. */
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract ConfigurableFileCollection getServerFiles();
+
+    /** "spigot" or "paper", passed to the tests as {@code ServerTest.serverType()}. */
+    @Input
+    public abstract Property<String> getServerType();
 
     /** Other plugins installed next to the plugin under test. */
     @InputFiles
@@ -128,6 +145,8 @@ public abstract class ServerTestTask extends DefaultTask {
             p.getPluginJar().set(getPluginJar());
             p.getHarnessJar().set(getHarnessJar());
             p.getOtherPlugins().from(getOtherPlugins());
+            p.getServerFileLayers().set(getServerFileLayers());
+            p.getServerType().set(getServerType());
             p.getJvmArgs().set(getJvmArgs());
             p.getRunTimeout().set(getRunTimeout());
             p.getServerDirectory().set(getServerDirectory());
@@ -157,6 +176,10 @@ public abstract class ServerTestTask extends DefaultTask {
         RegularFileProperty getHarnessJar();
 
         ConfigurableFileCollection getOtherPlugins();
+
+        ListProperty<org.gradle.api.file.Directory> getServerFileLayers();
+
+        Property<String> getServerType();
 
         ListProperty<String> getJvmArgs();
 
@@ -239,6 +262,8 @@ public abstract class ServerTestTask extends DefaultTask {
             command.add("-DIReallyKnowWhatIAmDoingISwear=true"); // skips the 20 s "outdated build" delay
             command.add("-Dspigottesting.outputDir=" + resultsDir.getAbsolutePath());
             command.add("-Dspigottesting.bots.port=" + botPort);
+            command.add("-Dspigottesting.serverType=" + p.getServerType().get());
+            command.add("-Dspigottesting.minecraftVersion=" + p.getMinecraftVersion().get());
             command.add("-jar");
             command.add(p.getServerJar().get().getAsFile().getAbsolutePath());
             command.add("nogui");
@@ -299,34 +324,22 @@ public abstract class ServerTestTask extends DefaultTask {
             }
             int port = freePort();
             Files.writeString(dir.resolve("eula.txt"), "eula=true\n");
-            Files.writeString(dir.resolve("server.properties"), String.join("\n",
-                    "online-mode=false",
-                    "server-ip=127.0.0.1",
-                    "server-port=" + port,
-                    "level-type=flat",
-                    "generate-structures=false",
-                    "allow-nether=false",
-                    "spawn-monsters=false",
-                    "spawn-animals=false",
-                    "spawn-npcs=false",
-                    "spawn-protection=0",
-                    "view-distance=4",
-                    "simulation-distance=4",
-                    "max-players=100",
-                    "enforce-secure-profile=false", // bots send unsigned chat
-                    "prevent-proxy-connections=false",
-                    "white-list=false", // 26.x enables the whitelist by default
-                    "enforce-whitelist=false",
-                    "enable-query=false",
-                    "enable-rcon=false",
-                    "snooper-enabled=false",
-                    "motd=spigot-testing",
-                    ""));
             Files.writeString(dir.resolve("bukkit.yml"), String.join("\n",
                     "settings:",
                     "  allow-end: false",
-                    "  connection-throttle: -1",
+                    "  connection-throttle: -1", // bots reconnect quickly
                     ""));
+            Files.createDirectories(dir.resolve("plugins/bStats"));
+            Files.writeString(dir.resolve("plugins/bStats/config.yml"), "enabled: false\n");
+
+            // The project's server files (src/serverTest/server*), then server.properties.
+            Map<String, String> properties = ServerFiles.defaultProperties(port);
+            List<Path> layers = getParameters().getServerFileLayers().get().stream().map(d -> d.getAsFile().toPath()).toList();
+            for (String warning : ServerFiles.apply(layers, dir, properties)) {
+                LOGGER.warn(warning);
+            }
+            Files.writeString(dir.resolve(ServerFiles.PROPERTIES), ServerFiles.toPropertiesFile(properties));
+
             Path plugins = Files.createDirectories(dir.resolve("plugins"));
             Files.createDirectories(plugins.resolve("bStats"));
             Files.writeString(plugins.resolve("bStats/config.yml"), "enabled: false\n");

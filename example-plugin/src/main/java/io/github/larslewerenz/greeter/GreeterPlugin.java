@@ -29,6 +29,10 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equals("rules")) {
+            Rules.send(sender, new java.io.File(getDataFolder(), "rules"));
+            return true;
+        }
         if (command.getName().equals("menu")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage("Only players can open the menu.");

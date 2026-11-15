@@ -11,3 +11,6 @@ commands:
   menu:
     description: Opens the greeter menu
     usage: /<command>
+  rules:
+    description: Shows the server rules from the files in plugins/Greeter/rules/
+    usage: /<command>
