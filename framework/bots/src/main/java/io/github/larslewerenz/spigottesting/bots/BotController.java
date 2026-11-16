@@ -33,6 +33,11 @@ import java.util.regex.Pattern;
  * BREAK name x y z mode  -> OK                 (mode: CREATIVE or SURVIVAL)
  * USE name x y z face    -> OK                 (face: UP, DOWN, NORTH, SOUTH, EAST, WEST)
  * HOTBAR name slot       -> OK
+ * ATTACK name entityId   -> OK                 (hits the entity)
+ * INTERACT name entityId -> OK                 (right-clicks the entity)
+ * USE_ITEM name          -> OK                 (right-clicks with the item in hand, not at a block)
+ * DROP name ONE|STACK    -> OK                 (Q / Ctrl+Q)
+ * SWAP name              -> OK                 (swaps main and off hand)
  * POSITION name          -> OK x y z n         (where the client is, and how many teleports it confirmed)
  * </pre>
  *
@@ -193,6 +198,26 @@ public final class BotController {
             }
             case "HOTBAR" -> {
                 bot(name).selectHotbarSlot(Integer.parseInt(request[2]));
+                out.println("OK");
+            }
+            case "ATTACK" -> {
+                bot(name).attack(Integer.parseInt(request[2]));
+                out.println("OK");
+            }
+            case "INTERACT" -> {
+                bot(name).interact(Integer.parseInt(request[2]));
+                out.println("OK");
+            }
+            case "USE_ITEM" -> {
+                bot(name).useItem();
+                out.println("OK");
+            }
+            case "DROP" -> {
+                bot(name).dropItem(request[2].equals("STACK"));
+                out.println("OK");
+            }
+            case "SWAP" -> {
+                bot(name).swapHands();
                 out.println("OK");
             }
             case "CLOSE" -> {

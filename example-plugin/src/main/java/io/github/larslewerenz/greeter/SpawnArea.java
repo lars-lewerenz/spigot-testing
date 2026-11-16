@@ -7,11 +7,12 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 
 /**
  * The area around the world spawn: nobody without the greeter.build permission may build there,
- * and players walking out of it are told so.
+ * players can't hurt each other there, and players walking out of it are told so.
  */
 final class SpawnArea implements Listener {
 
@@ -43,6 +44,16 @@ final class SpawnArea implements Listener {
         if (contains(block) && !player.hasPermission("greeter.build")) {
             event.setCancelled(true);
             player.sendMessage(Greetings.format(plugin.getConfig().getString("spawn-protected-message"), player.getName()));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onFight(EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Player && event.getDamager() instanceof Player
+                && contains(event.getEntity().getLocation())) {
+            event.setCancelled(true);
+            Player attacker = (Player) event.getDamager();
+            attacker.sendMessage(Greetings.format(plugin.getConfig().getString("no-fighting-message"), attacker.getName()));
         }
     }
 

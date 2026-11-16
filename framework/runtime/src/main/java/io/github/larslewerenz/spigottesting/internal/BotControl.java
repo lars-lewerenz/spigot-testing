@@ -80,6 +80,26 @@ public final class BotControl {
         request("HOTBAR " + name + " " + slot);
     }
 
+    public static void attack(String name, int entityId) {
+        request("ATTACK " + name + " " + entityId);
+    }
+
+    public static void interact(String name, int entityId) {
+        request("INTERACT " + name + " " + entityId);
+    }
+
+    public static void useItem(String name) {
+        request("USE_ITEM " + name);
+    }
+
+    public static void dropItem(String name, boolean wholeStack) {
+        request("DROP " + name + " " + (wholeStack ? "STACK" : "ONE"));
+    }
+
+    public static void swapHands(String name) {
+        request("SWAP " + name);
+    }
+
     public static void closeInventory(String name) {
         request("CLOSE " + name);
     }

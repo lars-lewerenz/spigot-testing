@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0]
+
+### New
+
+- **Entities:** `bot.attack(entity)` hits an entity or player and `bot.rightClickEntity(entity)`
+  right-clicks it, with the same packets as a client, so the server fires
+  `EntityDamageByEntityEvent` and `PlayerInteractEntityEvent` as for a player.
+- **Items:** `bot.useItem()` right-clicks with the held item while not looking at a block
+  (`RIGHT_CLICK_AIR`), `bot.dropItem()` and `bot.dropItemStack()` drop like Q and Ctrl+Q, and
+  `bot.swapHands()` swaps main and off hand like F (1.9+).
+- README: how a test checks what a menu holds (the server side of the open inventory, which
+  works on every version).
+- Greeter: players can't hurt each other at spawn, right-clicking a player waves at them, and every
+  player gets a compass that opens the menu and can't be dropped, with tests.
+
+Tested on all 36 servers (18 versions, Spigot and Paper).
+
 ## [0.6.0]
 
 ### New

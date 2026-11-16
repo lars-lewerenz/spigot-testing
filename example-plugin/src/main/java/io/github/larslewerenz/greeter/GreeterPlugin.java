@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -20,6 +21,8 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     private int greetings;
     private Sidebar sidebar;
     private Visitors visitors;
+    /** When each player last waved, to wave once per click (clients right-click once per hand). */
+    private final java.util.Map<java.util.UUID, Long> lastWave = new java.util.HashMap<>();
 
     @Override
     public void onEnable() {
@@ -115,8 +118,25 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
         updateSidebar();
     }
 
+    @EventHandler(ignoreCancelled = true)
+    public void onRightClickPlayer(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof Player)) {
+            return;
+        }
+        Player player = event.getPlayer();
+        long now = System.currentTimeMillis();
+        Long last = lastWave.put(player.getUniqueId(), now);
+        if (last != null && now - last < 500) {
+            return;
+        }
+        Player other = (Player) event.getRightClicked();
+        player.sendMessage(Greetings.format(getConfig().getString("wave-message"), other.getName()));
+        other.sendMessage(Greetings.format(getConfig().getString("waved-at-message"), player.getName()));
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        lastWave.remove(event.getPlayer().getUniqueId());
         // The player still counts as online during the event.
         getServer().getScheduler().runTask(this, this::updateSidebar);
     }

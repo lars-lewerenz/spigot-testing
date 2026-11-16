@@ -46,6 +46,18 @@ class GreeterPlayerTest {
     }
 
     @Test
+    void rightClickingAPlayerWavesAtThem() {
+        Bot alex = Bots.join("Alex");
+        Bot bob = Bots.join("Bob");
+        bob.teleport(sync(() -> alex.player().getLocation().add(1.5, 0, 0)));
+
+        alex.rightClickEntity(bob.player());
+
+        assertEquals(ChatColor.LIGHT_PURPLE + "Alex waves at you!", bob.awaitMessage("waves at you"));
+        assertEquals(ChatColor.LIGHT_PURPLE + "You wave at Bob.", alex.awaitMessage("You wave"));
+    }
+
+    @Test
     void botsAreRealPlayersOnTheServer() {
         Bot alex = Bots.join("Alex");
 

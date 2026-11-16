@@ -8,6 +8,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 
@@ -269,6 +270,77 @@ public final class Bot {
             default:
                 throw new IllegalArgumentException("Only UP, DOWN, NORTH, SOUTH, EAST and WEST faces can be clicked, not " + face);
         }
+    }
+
+    /**
+     * Hits an entity with the item in hand, like a left click on it, so the server fires
+     * {@code EntityDamageByEntityEvent} (or a plugin's protection kicks in) as for a player. The
+     * entity must be in the bot's world and within reach (3 blocks). Returns right away; the server
+     * handles the hit on one of its next ticks.
+     *
+     * <p>On older versions players can't be hurt for 3 seconds after joining, so a hit right
+     * after {@link Bots#join(String)} may be ignored: wait with {@code awaitTicks(60)} first.
+     */
+    public void attack(Entity target) {
+        BotControl.attack(name, entityIdInWorld(target));
+    }
+
+    /**
+     * Right-clicks an entity with the item in hand, so the server fires
+     * {@code PlayerInteractEntityEvent} (and {@code PlayerInteractAtEntityEvent}) as for a player:
+     * trading with a villager, mounting a horse, a plugin's NPC, ... The entity must be in the bot's
+     * world and within reach (3 blocks). Returns right away.
+     */
+    public void rightClickEntity(Entity target) {
+        BotControl.interact(name, entityIdInWorld(target));
+    }
+
+    private int entityIdInWorld(Entity target) {
+        Bots.requireOffMainThread();
+        boolean sameWorld = ServerTest.sync(() -> target.getWorld().equals(player.getWorld()));
+        if (!sameWorld) {
+            throw new IllegalArgumentException(target + " is not in " + name + "'s world");
+        }
+        return target.getEntityId();
+    }
+
+    /**
+     * Right-clicks with the item in hand while not looking at a block, like using a bow, eating, or a
+     * plugin's custom item: the server fires {@code PlayerInteractEvent} with
+     * {@code RIGHT_CLICK_AIR}. The bot looks where the player looks; if that is a block within
+     * reach, servers treat the click as a block click instead. Returns right away.
+     */
+    public void useItem() {
+        Bots.requireOffMainThread();
+        BotControl.useItem(name);
+    }
+
+    /**
+     * Drops one item of the held stack, like pressing Q: the server fires
+     * {@code PlayerDropItemEvent}. Returns right away.
+     */
+    public void dropItem() {
+        Bots.requireOffMainThread();
+        BotControl.dropItem(name, false);
+    }
+
+    /** Drops the whole held stack, like pressing Ctrl+Q. Returns right away. */
+    public void dropItemStack() {
+        Bots.requireOffMainThread();
+        BotControl.dropItem(name, true);
+    }
+
+    /**
+     * Swaps the items in the main and off hand, like pressing F: the server fires
+     * {@code PlayerSwapHandItemsEvent}. Minecraft 1.9 and later (1.8 has no off hand). Returns right
+     * away.
+     */
+    public void swapHands() {
+        Bots.requireOffMainThread();
+        if (!ServerTest.isMinecraftAtLeast("1.9")) {
+            throw new UnsupportedOperationException("Minecraft " + ServerTest.minecraftVersion() + " has no off hand to swap with");
+        }
+        BotControl.swapHands(name);
     }
 
     /** Selects a hotbar slot (0-8) like pressing 1-9, and waits until the server has it. */

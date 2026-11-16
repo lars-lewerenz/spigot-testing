@@ -20,4 +20,11 @@ kick-message: '&cNo griefing, %name%!'
 # Only players with the greeter.build permission may build this close (in blocks) to the spawn.
 spawn-radius: 16
 spawn-protected-message: '&cYou can''t build at spawn.'
+# Players can't hurt each other in the spawn area either.
+no-fighting-message: '&cNo fighting at spawn.'
 left-spawn-message: '&7You left the spawn area.'
+# Right-clicking another player waves at them (%name% is the other player).
+wave-message: '&dYou wave at %name%.'
+waved-at-message: '&d%name% waves at you!'
+# Give every player a compass that opens the menu (right-click it). It can't be dropped.
+menu-item: true

@@ -22,6 +22,10 @@ import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.Serv
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSetCarriedItemPacket;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemOnPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundAttackPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundInteractPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemPacket;
+import org.cloudburstmc.math.vector.Vector3d;
 import net.kyori.adventure.text.Component;
 import org.geysermc.mcprotocollib.network.ClientSession;
 import org.geysermc.mcprotocollib.network.Session;
@@ -238,6 +242,40 @@ final class Bot {
         float cz = direction == Direction.SOUTH ? 1 : direction == Direction.NORTH ? 0 : 0.5f;
         session.send(new ServerboundUseItemOnPacket(Vector3i.from(x, y, z), direction, Hand.MAIN_HAND, cx, cy, cz,
                 false, false, sequence.incrementAndGet()));
+    }
+
+    /** Hits the entity with the item in hand, like a left click on it. */
+    void attack(int entityId) {
+        session.send(new ServerboundAttackPacket(entityId));
+    }
+
+    /**
+     * Right-clicks the entity with the main hand. The click lands half a block above the entity's
+     * feet (servers report it as the clicked position of {@code PlayerInteractAtEntityEvent}).
+     */
+    void interact(int entityId) {
+        session.send(new ServerboundInteractPacket(entityId, Hand.MAIN_HAND, Vector3d.from(0, 0.5, 0), false));
+    }
+
+    /** Right-clicks with the item in hand while looking where the player looks (not at a block). */
+    void useItem() {
+        double[] at = position();
+        session.send(new ServerboundUseItemPacket(Hand.MAIN_HAND, sequence.incrementAndGet(), (float) at[3], (float) at[4]));
+    }
+
+    /** Drops one item of the held stack (Q), or the whole stack (Ctrl+Q). */
+    void dropItem(boolean wholeStack) {
+        playerAction(wholeStack ? PlayerAction.DROP_ITEM_STACK : PlayerAction.DROP_ITEM);
+    }
+
+    /** Swaps the items in the main and off hand (F). */
+    void swapHands() {
+        playerAction(PlayerAction.SWAP_HANDS);
+    }
+
+    private void playerAction(PlayerAction action) {
+        // Like the client: these actions are not about a block, so position and face are unused.
+        session.send(new ServerboundPlayerActionPacket(action, Vector3i.ZERO, Direction.DOWN, 0));
     }
 
     /** Selects a hotbar slot (0-8), like pressing 1-9. */

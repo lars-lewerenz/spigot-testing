@@ -36,16 +36,16 @@ $ ./gradlew serverTest
 [Spigot 1.8.8]   PASSED GreeterMenuTest > clickingThePaperGreetsAndClosesTheMenu()
 [Paper 26.3]   PASSED GreeterPlayerTest > chatReachesOtherPlayers()
 …
-[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (14 s)
-[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (15 s)
-[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (16 s)
-[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (22 s)
-[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (22 s)
-[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (23 s)
-[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (21 s)
-[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (26 s)
+[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (51 s, with a restart)
+[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (52 s, with a restart)
+[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (58 s, with a restart)
+[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (59 s, with a restart)
+[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (59 s, with a restart)
+[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (61 s, with a restart)
+[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (63 s, with a restart)
+[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 36 tests, 34 passed, 0 failed, 2 skipped, 0 aborted (65 s, with a restart)
 
-BUILD SUCCESSFUL in 33s
+BUILD SUCCESSFUL in 1m 10s
 ```
 
 ## ✨ Features
@@ -54,18 +54,18 @@ BUILD SUCCESSFUL in 33s
 |---|---|
 | 🖥️ **Real servers** | Spigot built with BuildTools, Paper downloaded from PaperMC. One Gradle task per server, all running in parallel. |
 | 🕰️ **1.8.8 → 26.x** | Every version runs on the Java it needs (8, 17, 21, 25) — picked from the server's metadata and downloaded by Gradle toolchains. |
-| 🤖 **Fake players** | Bots join over the real network protocol, chat, run commands and receive messages — on every version, through ViaProxy. |
+| 🤖 **Fake players** | Bots join over the real network protocol, chat, run commands, walk, build, fight and use items — on every version, through ViaProxy. |
 | 🗃️ **Inventory GUIs** | Bots see the menus your plugin opens and click them; you get genuine `InventoryClickEvent`s. |
 | 🗂️ **Server files** | Whole plugin config folders, custom files and `server.properties` settings, laid onto every server — or only Paper, or only one version. |
 | 🔌 **Other plugins** | Vault, PlaceholderAPI, LuckPerms… installed next to yours from Maven, local files or download URLs. |
 | 🎯 **Just JUnit 5** | Familiar assertions and annotations; JUnit XML reports for your CI. |
 | 🧩 **Unit tests too** | Plain `src/test` tests on the build JVM, with the Spigot API on the classpath. |
-| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 30 tests in ~45 s. |
+| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 36 tests in about a minute. |
 
 ### Supported servers
 
 Every major Minecraft version from 1.8.8 to 26.3, on **Spigot** and **Paper** — 36 servers, all
-running the example plugin's full suite (30 tests):
+running the example plugin's full suite (36 tests):
 
 | | 1.8.8 | 1.9.4 | 1.10.2 | 1.11.2 | 1.12.2 | 1.13.2 | 1.14.4 | 1.15.2 | 1.16.5 | 1.17.1 | 1.18.2 | 1.19.4 | 1.20.4 | 1.20.6 | 1.21.4 | 1.21.11 | 26.1.2 | 26.3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -92,7 +92,7 @@ running the example plugin's full suite (30 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.6.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.7.0"
 }
 
 repositories {
@@ -398,6 +398,12 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 }
 ```
 
+What the menu holds is on the server's side of the open inventory (works on every version):
+
+```java
+ItemStack paper = sync(() -> alex.player().getOpenInventory().getTopInventory().getItem(13).clone());
+```
+
 | `Bot.…` | |
 |---|---|
 | `player()` | the server-side Bukkit `Player` (use it inside `ServerTest.sync(...)`) |
@@ -409,6 +415,9 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 | `closeInventory()` | closes it, like pressing Escape |
 | `moveTo(location)` · `teleport(location)` | walks there in a straight line (with `PlayerMoveEvent`s), or teleports and waits for the client |
 | `breakBlock(block)` · `rightClickBlock(block, face)` | mines a block (instantly in creative, as long as a player would in survival) · places the held block, opens doors, flips levers |
+| `attack(entity)` · `rightClickEntity(entity)` | hits an entity or player · right-clicks it (villagers, NPCs, mounts); within 3 blocks |
+| `useItem()` | right-clicks with the held item, not at a block (`RIGHT_CLICK_AIR`) |
+| `dropItem()` · `dropItemStack()` · `swapHands()` | like Q, Ctrl+Q and F (swapping needs 1.9+) |
 | `selectHotbarSlot(slot)` | like pressing 1–9 |
 | `quit()` · `isOnline()` | disconnects and waits until the server has removed the player |
 | `awaitKick()` | waits until the server disconnects the bot and returns the reason it gave |
@@ -447,6 +456,39 @@ void walkingOutOfTheSpawnAreaIsAnnounced() {
 Movement is a straight line at walking speed without pathfinding, so keep the way clear (the test
 world is flat and empty). Use `bot.teleport(...)` rather than `player().teleport(...)`: until the
 client confirms a teleport, the server ignores its clicks and steps.
+
+### ⚔️ Entities and items
+
+```java
+@Test
+void nobodyFightsAtSpawn() {
+    Bot alex = Bots.join("Alex");
+    Bot bob = Bots.join("Bob");
+    alex.teleport(spawn);
+    bob.teleport(spawn.clone().add(1.5, 0, 0));          // within reach
+    awaitTicks(60);                                      // older versions: no damage for 3 s after joining
+    EventRecorder<EntityDamageByEntityEvent> hits = recordEvents(EntityDamageByEntityEvent.class);
+
+    alex.attack(bob.player());
+
+    assertTrue(hits.awaitEvent().isCancelled());
+    assertEquals(ChatColor.RED + "No fighting at spawn.", alex.awaitMessage("No fighting"));
+}
+
+@Test
+void theCompassOpensTheMenu() {
+    Bot alex = Bots.join("Alex");
+    alex.selectHotbarSlot(8);                            // Greeter gives every player a menu compass
+
+    alex.useItem();
+
+    alex.awaitInventory("Greeter Menu");
+}
+```
+
+`rightClickEntity` fires `PlayerInteractEntityEvent` (Greeter waves at the player you click),
+`dropItem()` fires `PlayerDropItemEvent`. Entities must be within 3 blocks of the bot: servers
+ignore hits and clicks from farther away.
 
 ### 📺 Titles, boss bars, sidebars and the tab list
 
@@ -634,7 +676,8 @@ framework/                 the framework (an included Gradle build)
 └── bots/                  bot controller: MCProtocolLib + ViaProxy (Java 21), bundled into the plugin
 example-paper-plugin/      a Paper plugin (paper-plugin.yml, Brigadier, Adventure) and its tests
 tests/failure-paths/       projects that must fail, and check.sh, which checks they fail clearly
-example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu GUI, welcome messages,
+example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu GUI and a compass that
+                           opens it, welcome messages, a protected spawn area, waving at players,
                            creeper blocking, night skipping, a PlaceholderAPI placeholder — and tests
                            for all of it
 ```
@@ -669,8 +712,8 @@ resolved. Every release is also attached to [GitHub Releases](https://github.com
 ## 🧭 Limitations & ideas
 
 - **Bots** join, chat, run commands, click inventory GUIs, see titles, boss bars, sidebars and
-  the tab list, walk, break and place blocks, and quit. They don't fight, ride or use items in the
-  air yet — do that through `bot.player()`.
+  the tab list, walk, break and place blocks, hit and right-click entities, use, drop and swap
+  items, and quit. They don't ride, sneak or sprint yet — do that through `bot.player()`.
 - **Offline mode:** bots join with unsigned chat on servers running `online-mode=false`.
 - **Same plugins everywhere:** other plugins are installed on every server, so pick versions that
   cover your whole range.
