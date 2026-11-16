@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0]
 
 ### New
 
@@ -8,6 +8,9 @@
   client version, for servers that let other clients in with ViaVersion (and ViaBackwards and
   ViaRewind). The Paper example installs all three and tests a 1.8.8, a 1.12.2 and a 1.20.4
   player.
+- README: `dispatchCommand` doesn't record replies of vanilla commands on Spigot.
+
+Tested on all 36 servers (18 versions, Spigot and Paper).
 
 ## [0.7.0]
 
