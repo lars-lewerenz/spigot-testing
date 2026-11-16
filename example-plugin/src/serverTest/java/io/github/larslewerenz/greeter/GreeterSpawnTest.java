@@ -5,6 +5,7 @@ import static io.github.larslewerenz.spigottesting.ServerTest.recordEvents;
 import static io.github.larslewerenz.spigottesting.ServerTest.sync;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.larslewerenz.spigottesting.Bot;
@@ -62,12 +63,15 @@ class GreeterSpawnTest {
         alex.moveTo(outsideSpawn(alex, spawn));
         Block ground = groundNextTo(alex);
         Block above = ground.getRelative(BlockFace.UP);
+        EventRecorder<BlockPlaceEvent> places = recordEvents(BlockPlaceEvent.class);
         EventRecorder<BlockBreakEvent> breaks = recordEvents(BlockBreakEvent.class);
         holdDirt(alex);
 
         alex.rightClickBlock(ground, BlockFace.UP);
-        awaitBlock(above, Material.DIRT);
-        // In survival, breaking takes as long as it does for a player (dirt by hand: under a second).
+        assertFalse(places.awaitEvent().isCancelled());
+        // Not "is dirt": the grass around can spread onto it at any tick.
+        awaitBlockNot(above, Material.AIR);
+        // In survival, breaking takes as long as it does for a player (dirt or grass by hand: about a second).
         alex.breakBlock(above);
         breaks.awaitEvent(event -> event.getBlock().equals(above));
         awaitBlock(above, Material.AIR);
@@ -131,6 +135,13 @@ class GreeterSpawnTest {
     private static void holdDirt(Bot bot) {
         sync(() -> bot.player().getInventory().setItem(0, new ItemStack(Material.DIRT, 1)));
         bot.selectHotbarSlot(0);
+    }
+
+    private static void awaitBlockNot(Block block, Material type) {
+        for (int i = 0; i < 100 && sync(block::getType) == type; i++) {
+            awaitTicks(1);
+        }
+        assertNotEquals(type, sync(block::getType));
     }
 
     private static void awaitBlock(Block block, Material type) {

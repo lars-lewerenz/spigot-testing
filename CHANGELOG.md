@@ -15,6 +15,13 @@
 - Greeter: players can't hurt each other at spawn, right-clicking a player waves at them, and every
   player gets a compass that opens the menu and can't be dropped, with tests.
 
+### Fixes
+
+- On 1.21.11 and newer, monsters spawned in the test worlds: those servers ignore `spawn-monsters`
+  in server.properties, which became the `spawn_monsters` game rule. The harness now sets the rule
+  from the property, so the default (no monsters) or a project's own setting holds on every
+  version.
+
 Tested on all 36 servers (18 versions, Spigot and Paper).
 
 ## [0.6.0]

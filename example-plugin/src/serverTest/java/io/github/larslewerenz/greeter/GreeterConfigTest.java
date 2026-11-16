@@ -47,10 +47,18 @@ class GreeterConfigTest {
     }
 
     @Test
-    void serverPropertiesAreMerged() {
+    void serverPropertiesAreMerged() throws ReflectiveOperationException {
         assertEquals(Difficulty.HARD, Bukkit.getWorlds().get(0).getDifficulty());
         // the framework's own settings are still there
         assertEquals("flat", Bukkit.getWorldType().toLowerCase().replace("minecraft:", ""));
+        // spawn-monsters=false, which 1.21.11+ servers only know as a game rule
+        World world = Bukkit.getWorlds().get(0);
+        if (world.isGameRule("spawn_monsters")) {
+            // GameRule is newer than the 1.8.8 API this example compiles against.
+            Class<?> gameRule = Class.forName("org.bukkit.GameRule");
+            Object spawnMonsters = gameRule.getField("SPAWN_MONSTERS").get(null);
+            assertEquals(Boolean.FALSE, World.class.getMethod("getGameRuleValue", gameRule).invoke(world, spawnMonsters));
+        }
     }
 
     @Test

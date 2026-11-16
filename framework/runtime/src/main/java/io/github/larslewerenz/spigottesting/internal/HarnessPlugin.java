@@ -30,6 +30,7 @@ public final class HarnessPlugin extends JavaPlugin {
         }
         ClassLoader classLoader = getClassLoader();
         getServer().getScheduler().runTask(this, () -> {
+            MonsterSpawning.applyProperty(getServer());
             String missing = missingDependency();
             if (missing != null) {
                 // Modern Paper loads this harness even when the plugin under test failed to load,
