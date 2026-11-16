@@ -14,6 +14,14 @@ updates:
     # found and pulled within days.
     cooldown:
       default-days: 7
+    ignore:
+      # Compatibility floors, chosen on purpose: plugins compile against the oldest API they
+      # support, so the same jar runs on every newer server.
+      - dependency-name: "org.spigotmc:spigot-api"
+      - dependency-name: "io.papermc.paper:paper-api"
+      # JUnit 6+ needs Java 17, but the test runtime runs inside servers on Java 8 (1.8.8 - 1.16.5).
+      - dependency-name: "org.junit:junit-bom"
+        update-types: ["version-update:semver-major"]
     groups:
       bots:
         patterns:
