@@ -73,6 +73,36 @@ class PluginFunctionalTest {
     }
 
     @Test
+    void harnessJarWorksWithTheConfigurationCache() throws IOException {
+        Files.writeString(project.resolve("build.gradle.kts"), Files.readString(project.resolve("build.gradle.kts"))
+                + "repositories { mavenCentral() }\n");
+        Path resources = Files.createDirectories(project.resolve("src/main/resources"));
+        Files.writeString(resources.resolve("plugin.yml"), "name: Fixture\nversion: '1'\nmain: x.Fixture\n");
+        Path test = Files.createDirectories(project.resolve("src/serverTest/java/x"));
+        Files.writeString(test.resolve("FixtureTest.java"), """
+                package x;
+                class FixtureTest {
+                    @org.junit.jupiter.api.Test
+                    void runs() {
+                        io.github.larslewerenz.spigottesting.ServerTest.class.getName();
+                    }
+                }
+                """);
+
+        BuildResult first = gradle("serverTestHarnessJar", "--configuration-cache").build();
+        BuildResult second = gradle("serverTestHarnessJar", "--configuration-cache", "--rerun-tasks").build();
+
+        assertTrue(first.getOutput().contains("Configuration cache entry stored"), first.getOutput());
+        assertTrue(second.getOutput().contains("Reusing configuration cache"), second.getOutput());
+        try (var jar = new java.util.zip.ZipFile(project.resolve("build/spigot-testing/spigot-testing-harness.jar").toFile())) {
+            assertTrue(jar.getEntry("x/FixtureTest.class") != null, "test class missing");
+            assertTrue(jar.getEntry("io/github/larslewerenz/spigottesting/ServerTest.class") != null, "runtime missing");
+            assertTrue(jar.getEntry("org/junit/platform/launcher/Launcher.class") != null, "JUnit missing");
+            assertTrue(jar.getEntry("plugin.yml") != null, "plugin.yml missing");
+        }
+    }
+
+    @Test
     void unitTestsGetJunitAndTheCompileOnlyApi() throws IOException {
         Files.writeString(project.resolve("build.gradle.kts"), Files.readString(project.resolve("build.gradle.kts")) + """
                 repositories { mavenCentral() }

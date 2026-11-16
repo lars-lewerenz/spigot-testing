@@ -14,6 +14,7 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.file.ArchiveOperations;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.DuplicatesStrategy;
 import org.gradle.api.file.FileCollection;
@@ -55,6 +56,9 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
     @Inject
     protected abstract JavaToolchainService getToolchains();
 
+    @Inject
+    protected abstract ArchiveOperations getArchives();
+
     @Override
     public void apply(Project project) {
         project.getPluginManager().apply(JavaPlugin.class);
@@ -74,7 +78,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         addRuntime(project, serverTest, versions.getProperty("junitVersion"));
 
         FileCollection otherPlugins = configureOtherPlugins(project, extension, serverTest);
-        TaskProvider<Jar> harnessJar = registerHarnessJar(project, extension, serverTest, otherPlugins);
+        TaskProvider<Jar> harnessJar = registerHarnessJar(project, getArchives(), extension, serverTest, otherPlugins);
         TaskProvider<ExtractBundledJar> botController = project.getTasks().register(
                 "extractBotController", ExtractBundledJar.class, task -> {
                     task.getResource().set(ExtractBundledJar.BOTS);
@@ -197,7 +201,8 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         return project.files(files, project.files(downloads.flatMap(DownloadPlugins::getOutputDirectory)).getAsFileTree());
     }
 
-    private static TaskProvider<Jar> registerHarnessJar(Project project, SpigotTestingExtension extension, SourceSet serverTest,
+    private static TaskProvider<Jar> registerHarnessJar(Project project, ArchiveOperations archives,
+            SpigotTestingExtension extension, SourceSet serverTest,
             FileCollection otherPlugins) {
         TaskProvider<GenerateHarnessResources> resources = project.getTasks().register(
                 "generateServerTestHarnessResources", GenerateHarnessResources.class, task -> {
@@ -217,7 +222,8 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             jar.from(serverTest.getOutput());
             jar.dependsOn(runtimeClasspath);
             jar.from(runtimeClasspath.getElements().map(files -> files.stream()
-                    .map(f -> f.getAsFile().isDirectory() ? f.getAsFile() : project.zipTree(f.getAsFile()))
+                    // ArchiveOperations, not project.zipTree: the configuration cache can't store a Project
+                    .map(f -> f.getAsFile().isDirectory() ? f.getAsFile() : archives.zipTree(f.getAsFile()))
                     .collect(Collectors.toList())));
             jar.exclude("module-info.class", "META-INF/versions/*/module-info.class",
                     "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA");

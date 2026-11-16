@@ -23,7 +23,7 @@ configurations.runtimeClasspath {
 // One self-contained jar, embedded in the Gradle plugin, so projects using the plugin
 // don't need MCProtocolLib's repository. The libraries' licenses are listed in
 // META-INF/THIRD-PARTY-NOTICES.txt.
-val fatJar by tasks.registering(Jar::class) {
+val fatJar = tasks.register<Jar>("fatJar") {
     archiveClassifier = "all"
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {

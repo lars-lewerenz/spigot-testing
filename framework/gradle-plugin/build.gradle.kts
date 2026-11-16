@@ -33,6 +33,8 @@ dependencies {
 }
 tasks.test {
     useJUnitPlatform()
+    // TestKit runs the tested Gradle versions on this JVM; Gradle 8.x can't run on newer Java.
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
 }
 
 // Jars shipped inside this plugin, so projects need no repository besides the Plugin Portal and

@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       servers:
-        description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}]'
+        description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}], optionally with "os"'
         type: string
         required: true
 
@@ -15,8 +15,11 @@ permissions:
 
 jobs:
   server-test:
-    name: ${{ matrix.server }} ${{ matrix.version }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.server }} ${{ matrix.version }}${{ matrix.os && format(' ({0})', matrix.os) || '' }}
+    runs-on: ${{ matrix.os || 'ubuntu-latest' }}
+    defaults:
+      run:
+        shell: bash # also on Windows (Git Bash), so the steps are the same everywhere
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -68,7 +71,7 @@ jobs:
           path: |
             ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
             ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
-          key: spigot-${{ matrix.version }}-v1
+          key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
       - name: Build Spigot ${{ matrix.version }}
         if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
         run: ./gradlew :example-plugin:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
@@ -79,7 +82,7 @@ jobs:
           path: |
             ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
             ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
-          key: spigot-${{ matrix.version }}-v1
+          key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
 
       - name: Run server tests
         run: >-
@@ -89,5 +92,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: server-test-results-${{ matrix.server }}-${{ matrix.version }}
+          name: server-test-results-${{ matrix.server }}-${{ matrix.version }}-${{ runner.os }}
           path: example-plugin/build/spigot-testing/${{ steps.names.outputs.dir }}/results/
