@@ -1,8 +1,6 @@
 <div align="center">
 
-# 🧪 spigot-testing
-
-**Real-server tests for Spigot & Paper plugins — from 1.8.8 to 26.x — with Gradle and JUnit 5.**
+<img src="docs/banner.svg" alt="spigot-testing: real-server tests for Spigot &amp; Paper plugins, from Minecraft 1.8.8 to 26.3, with Gradle and JUnit 5" width="100%">
 
 Your plugin, on real servers, against real players, on every Minecraft version you support.
 

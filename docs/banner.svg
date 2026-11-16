@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+  <title id="title">spigot-testing</title>
+  <desc id="desc">Real-server tests for Spigot and Paper plugins, from Minecraft 1.8.8 to 26.3, with Gradle and JUnit 5.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#16233b"/>
+    </linearGradient>
+    <pattern id="grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="none" stroke="#ffffff" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#4ade80" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4ade80" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="card"><rect width="1280" height="320" rx="24"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1280" height="320" fill="url(#bg)"/>
+    <rect width="1280" height="320" fill="url(#grid)"/>
+    <!-- pixel "ground" strip along the bottom -->
+    <g fill="#1f6f3a">
+      <rect x="0" y="304" width="1280" height="16"/>
+    </g>
+    <g fill="#2f9e55">
+      <rect x="0" y="296" width="1280" height="8"/>
+      <rect x="32" y="288" width="16" height="8"/><rect x="144" y="288" width="24" height="8"/>
+      <rect x="400" y="288" width="16" height="8"/><rect x="720" y="288" width="32" height="8"/>
+      <rect x="1000" y="288" width="16" height="8"/><rect x="1200" y="288" width="24" height="8"/>
+    </g>
+
+    <!-- pixel test tube -->
+    <g transform="translate(88 44)">
+      <ellipse cx="72" cy="104" rx="70" ry="80" fill="url(#halo)"/>
+      <ellipse cx="72" cy="178" rx="56" ry="7" fill="#000000" fill-opacity="0.35"/>
+      <!-- glass outline (8 px pixels) -->
+      <g fill="#cbd5e1">
+        <rect x="32" y="0" width="80" height="8"/>
+        <rect x="40" y="8" width="8" height="136"/><rect x="96" y="8" width="8" height="136"/>
+        <rect x="48" y="144" width="8" height="8"/><rect x="88" y="144" width="8" height="8"/>
+        <rect x="56" y="152" width="32" height="8"/>
+      </g>
+      <!-- glass shine -->
+      <rect x="52" y="16" width="6" height="40" fill="#ffffff" fill-opacity="0.35"/>
+      <!-- liquid -->
+      <g fill="#4ade80">
+        <rect x="48" y="80" width="48" height="64"/>
+        <rect x="56" y="144" width="32" height="8"/>
+      </g>
+      <g fill="#86efac">
+        <rect x="48" y="80" width="48" height="8"/>
+      </g>
+      <!-- bubbles -->
+      <g fill="#dcfce7">
+        <rect x="64" y="104" width="8" height="8"/>
+        <rect x="80" y="120" width="6" height="6"/>
+        <rect x="58" y="128" width="5" height="5"/>
+        <rect x="72" y="60" width="8" height="8" fill-opacity="0.8"/>
+        <rect x="60" y="36" width="6" height="6" fill-opacity="0.6"/>
+        <rect x="82" y="22" width="5" height="5" fill-opacity="0.45"/>
+      </g>
+      <!-- check mark badge -->
+      <g transform="translate(108 112)">
+        <rect x="0" y="0" width="48" height="48" rx="10" fill="#16a34a"/>
+        <path d="M12 25 L21 34 L37 15" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+
+    <!-- title and tagline -->
+    <g font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'Liberation Mono',monospace">
+      <text x="296" y="128" font-size="64" font-weight="700" fill="#f8fafc">spigot<tspan fill="#4ade80">-</tspan>testing</text>
+    </g>
+    <g font-family="-apple-system,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif">
+      <text x="298" y="170" font-size="24" fill="#cbd5e1">Real-server tests for Spigot &amp; Paper plugins</text>
+      <text x="298" y="202" font-size="24" fill="#94a3b8">on every Minecraft version you support</text>
+    </g>
+
+    <!-- chips -->
+    <g font-family="-apple-system,'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="17" font-weight="600">
+      <rect x="298" y="226" width="148" height="34" rx="17" fill="#14532d"/>
+      <text x="372" y="249" text-anchor="middle" fill="#86efac">1.8.8 → 26.3</text>
+      <rect x="456" y="226" width="160" height="34" rx="17" fill="#1e3a5f"/>
+      <text x="536" y="249" text-anchor="middle" fill="#93c5fd">Spigot · Paper</text>
+      <rect x="626" y="226" width="146" height="34" rx="17" fill="#3b2a5c"/>
+      <text x="699" y="249" text-anchor="middle" fill="#c4b5fd">Fake players</text>
+      <rect x="782" y="226" width="96" height="34" rx="17" fill="#4a2d1a"/>
+      <text x="830" y="249" text-anchor="middle" fill="#fdba74">JUnit 5</text>
+    </g>
+
+    <!-- terminal card -->
+    <g transform="translate(920 48)">
+      <rect width="320" height="212" rx="14" fill="#020617" stroke="#334155" stroke-width="2"/>
+      <rect width="320" height="34" rx="14" fill="#1e293b"/>
+      <rect y="20" width="320" height="14" fill="#1e293b"/>
+      <circle cx="22" cy="17" r="6" fill="#f87171"/>
+      <circle cx="42" cy="17" r="6" fill="#fbbf24"/>
+      <circle cx="62" cy="17" r="6" fill="#4ade80"/>
+      <g font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,'Liberation Mono',monospace" font-size="14">
+        <text x="18" y="64" fill="#94a3b8">$ ./gradlew serverTest</text>
+        <text x="18" y="94" fill="#e2e8f0"><tspan fill="#4ade80">✔</tspan> Spigot 1.8.8</text><text x="302" y="94" text-anchor="end" fill="#86efac">17/17</text>
+        <text x="18" y="118" fill="#e2e8f0"><tspan fill="#4ade80">✔</tspan> Spigot 1.21.11</text><text x="302" y="118" text-anchor="end" fill="#86efac">17/17</text>
+        <text x="18" y="142" fill="#e2e8f0"><tspan fill="#4ade80">✔</tspan> Paper 26.3</text><text x="302" y="142" text-anchor="end" fill="#86efac">17/17</text>
+        <text x="34" y="166" fill="#64748b">… 36 servers, all green</text>
+        <text x="18" y="194" fill="#4ade80" font-weight="700">BUILD SUCCESSFUL</text>
+      </g>
+    </g>
+  </g>
+</svg>
