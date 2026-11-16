@@ -744,6 +744,9 @@ resolved. Every release is also attached to [GitHub Releases](https://github.com
   the tab list, walk, break and place blocks, hit and right-click entities, use, drop and swap
   items, and quit. They don't ride, sneak or sprint yet — do that through `bot.player()`.
 - **Offline mode:** bots join with unsigned chat on servers running `online-mode=false`.
+- **Rare double joins:** on servers older than 1.20.2, a bot's connection very rarely breaks
+  inside ViaProxy after the server has let the player in; the bot reconnects, and plugins see two
+  joins. A `WARNING` line in the build output says when that happened.
 - **Same plugins everywhere:** other plugins are installed on every server, so pick versions that
   cover your whole range.
 - **Latest builds:** Paper jars (and BuildTools' Spigot) are the latest build of a version at the

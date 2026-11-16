@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+- A bot's connection can break inside ViaProxy after the server has already let the player in
+  (rarely, on servers older than 1.20.2). The bot reconnects, so plugins see the player join twice,
+  which made a test about first visits fail without explanation. The build output now says so
+  with a warning next to the test.
+
 ## [0.8.0]
 
 ### New

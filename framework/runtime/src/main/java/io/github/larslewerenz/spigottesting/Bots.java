@@ -1,11 +1,13 @@
 package io.github.larslewerenz.spigottesting;
 
 import io.github.larslewerenz.spigottesting.internal.BotControl;
+import io.github.larslewerenz.spigottesting.internal.TestLog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerJoinEvent;
 
 /**
  * Fake players for server tests. {@link #join(String)} connects a bot client to the test server
@@ -43,17 +45,20 @@ public final class Bots {
      */
     public static Bot join(String name, String clientVersion) {
         requireOffMainThread();
-        BotControl.join(name, clientVersion);
-        long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
         Player player;
-        while ((player = ServerTest.sync(() -> Bukkit.getPlayerExact(name))) == null) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new IllegalStateException(name + " connected, but the server did not report the player online");
+        try (EventRecorder<PlayerJoinEvent> joins = EventRecorder.start(PlayerJoinEvent.class)) {
+            BotControl.join(name, clientVersion);
+            long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
+            while ((player = ServerTest.sync(() -> Bukkit.getPlayerExact(name))) == null) {
+                if (System.currentTimeMillis() > deadline) {
+                    throw new IllegalStateException(name + " connected, but the server did not report the player online");
+                }
+                ServerTest.awaitTicks(1);
             }
-            ServerTest.awaitTicks(1);
+            // Let the server process the client's spawn confirmation before the test talks to it.
+            ServerTest.awaitTicks(2);
+            warnAboutRepeatedJoins(name, joins);
         }
-        // Let the server process the client's spawn confirmation before the test talks to it.
-        ServerTest.awaitTicks(2);
         Bot bot = new Bot(name, player);
         ONLINE.add(bot);
         return bot;
@@ -72,6 +77,20 @@ public final class Bots {
             throw new AssertionError(name + " was let in, but the server should have refused the login");
         }
         return reason;
+    }
+
+    /**
+     * A bot's connection can break inside ViaProxy after the server has already let the player in
+     * (rarely, on servers older than 1.20.2). The bot then reconnects, and plugins see the player
+     * join twice: say so, or a test about first joins fails without an explanation.
+     */
+    private static void warnAboutRepeatedJoins(String name, EventRecorder<PlayerJoinEvent> joins) {
+        long count = joins.events().stream().filter(event -> event.getPlayer().getName().equals(name)).count();
+        if (count > 1) {
+            TestLog.warning(name + " joined the server " + count + " times: the first connection broke inside"
+                    + " ViaProxy after the server had let the player in, and the bot reconnected. Plugins saw"
+                    + " every join, so anything that counts joins or first visits is off in this test.");
+        }
     }
 
     /** Disconnects every bot that is still online. Called automatically after each test. */
