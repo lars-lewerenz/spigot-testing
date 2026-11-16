@@ -92,7 +92,7 @@ running the example plugin's full suite (17 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.4.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.4.1"
 }
 
 repositories {
@@ -428,6 +428,28 @@ With warm caches a full run of all 8 servers takes about **3 minutes**.
 > In this repo the server tests only run once the repository variable `ACCEPT_MINECRAFT_EULA` is
 > `true`, so accepting the EULA in CI stays an explicit choice of the repo owner.
 
+## 🔐 Verifying releases
+
+Every release is built by [the release workflow](.github/workflows/release.yml), only from a commit
+whose CI passed, and its jars carry a signed [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations).
+To check that a jar from the [releases](https://github.com/lars-lewerenz/spigot-testing/releases)
+was built by that workflow from this repository:
+
+```bash
+gh attestation verify spigot-testing-gradle-plugin-0.4.1.jar --repo lars-lewerenz/spigot-testing
+```
+
+## 🧰 How this repository stays healthy
+
+- **CI** on every push and pull request: the framework's own tests on Linux and Windows, both
+  example plugins on 10 servers, and projects that must fail ([`tests/failure-paths`](tests/failure-paths)).
+- **Weekly compatibility run** ([`compatibility.yml`](.github/workflows/compatibility.yml)): all 36
+  servers every Monday, with Spigot built fresh and Paper's latest build, so a new server build
+  that breaks something shows up within a week.
+- **Dependabot** keeps [`gradle/libs.versions.toml`](gradle/libs.versions.toml) and the GitHub
+  Actions (pinned to commit SHAs) up to date. New Minecraft versions usually need the bot client
+  (MCProtocolLib, ViaProxy) updated; those come as their own pull request.
+
 ## 🛠️ How it works
 
 ```mermaid
@@ -493,7 +515,7 @@ one line, no credentials, no extra repositories.
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.4.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.4.1"
 }
 repositories {
     mavenCentral()                                                   // JUnit

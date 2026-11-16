@@ -1,0 +1,33 @@
+# Keeps dependencies and GitHub Actions up to date. Most versions live in gradle/libs.versions.toml.
+# New Minecraft versions usually need MCProtocolLib and ViaProxy updates: those get their own
+# pull request, since they matter most for compatibility.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directories:
+      - "/"           # the root build and gradle/libs.versions.toml
+      - "/framework"  # the framework build (plugins it applies)
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      bots:
+        patterns:
+          - "org.geysermc.mcprotocollib:*"
+          - "net.raphimc:ViaProxy"
+      libraries:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "org.geysermc.mcprotocollib:*"
+          - "net.raphimc:ViaProxy"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - "*"

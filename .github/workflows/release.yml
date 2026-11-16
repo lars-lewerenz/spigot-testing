@@ -1,50 +1,109 @@
 name: Release
 
-# Push a tag like v0.1.0 on a commit whose CI run passed.
+# A release: push a tag like v0.5.0. Publishing only happens after CI passed on that commit.
+# A dry run: start this workflow by hand. It checks CI, builds, tests and attests the jars of the
+# current commit as version 0.0.0-dryrun, and publishes nothing.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
-  contents: write  # create the GitHub release
-  packages: write  # publish to GitHub Packages
+  contents: read
 
 jobs:
+  verify-ci:
+    name: CI passed on this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: read
+    steps:
+      - name: Wait for CI and require success
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: |
+          # CI starts when the commit is pushed; a tag may be pushed right after it.
+          for attempt in $(seq 1 140); do
+            run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push&per_page=1" \
+              --jq '.workflow_runs[0] | select(. != null) | "\(.status) \(.conclusion) \(.html_url)"')
+            if [ -z "$run" ]; then
+              echo "No CI run for $SHA yet"
+            else
+              read -r status conclusion url <<< "$run"
+              if [ "$status" = "completed" ]; then
+                echo "CI for $SHA: $conclusion ($url)"
+                [ "$conclusion" = "success" ] && exit 0
+                echo "::error::CI did not pass on this commit; not releasing it"
+                exit 1
+              fi
+              echo "CI for $SHA is $status, waiting"
+            fi
+            sleep 30
+          done
+          echo "::error::No finished CI run for $SHA after 70 minutes"
+          exit 1
+
   release:
+    needs: verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write      # create the GitHub release
+      packages: write      # publish to GitHub Packages
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
     env:
       # API key of the Gradle Plugin Portal account (https://plugins.gradle.org), as repository secrets.
       GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
       GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+      PUBLISH: ${{ github.event_name == 'push' }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
-      - name: Version from tag
+      - name: Version
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "$PUBLISH" = "true" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dryrun" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build and test the framework
         run: ./gradlew -p framework build -PreleaseVersion=${{ steps.version.outputs.version }}
 
+      # Lets anyone check that a jar was built by this workflow from this commit:
+      # gh attestation verify <jar> --repo lars-lewerenz/spigot-testing
+      - name: Attest the jars
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            framework/gradle-plugin/build/libs/spigot-testing-gradle-plugin-${{ steps.version.outputs.version }}.jar
+            framework/runtime/build/libs/spigot-testing-runtime-${{ steps.version.outputs.version }}.jar
+            framework/runtime/build/libs/spigot-testing-runtime-${{ steps.version.outputs.version }}-sources.jar
+
       - name: Publish to GitHub Packages
+        if: env.PUBLISH == 'true'
         run: ./gradlew -p framework publishAllPublicationsToGitHubPackagesRepository -PreleaseVersion=${{ steps.version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to the Gradle Plugin Portal
-        if: env.GRADLE_PUBLISH_KEY != ''
+        if: env.PUBLISH == 'true' && env.GRADLE_PUBLISH_KEY != ''
         run: ./gradlew -p framework :spigot-testing-gradle-plugin:publishPlugins -PreleaseVersion=${{ steps.version.outputs.version }}
       - name: Plugin Portal not configured
-        if: env.GRADLE_PUBLISH_KEY == ''
+        if: env.PUBLISH == 'true' && env.GRADLE_PUBLISH_KEY == ''
         run: echo "::warning::GRADLE_PUBLISH_KEY / GRADLE_PUBLISH_SECRET are not set; not published to the Gradle Plugin Portal"
 
       - name: Create GitHub release
+        if: env.PUBLISH == 'true'
         run: |
           notes=$(awk -v v="$VERSION" '$0 ~ "^## \\[?" v "\\]?" {found=1; next} found && /^## / {exit} found' CHANGELOG.md)
           gh release create "$GITHUB_REF_NAME" \
@@ -56,3 +115,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Dry run
+        if: env.PUBLISH != 'true'
+        run: echo "::notice::Dry run of commit $GITHUB_SHA passed (CI, build, tests, attestation); nothing was published"

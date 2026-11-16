@@ -48,8 +48,6 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
     private static final String GROUP = "verification";
     /** MCProtocolLib, which the bot controller uses, needs Java 21. */
     private static final int BOT_JAVA_VERSION = 21;
-    /** Translates the bots' protocol (the newest version) to the version of each test server. */
-    private static final String VIAPROXY_VERSION = "3.4.14";
     private static final boolean APPLE_SILICON = System.getProperty("os.name").startsWith("Mac")
             && System.getProperty("os.arch").equals("aarch64");
 
@@ -84,10 +82,12 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
                     task.getResource().set(ExtractBundledJar.BOTS);
                     task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/" + ExtractBundledJar.BOTS));
                 });
+        // Translates the bots' protocol (the newest) to each server's version; see libs.versions.toml.
+        String viaProxyVersion = versions.getProperty("viaproxyVersion");
         TaskProvider<DownloadViaProxy> viaProxy = project.getTasks().register("downloadViaProxy", DownloadViaProxy.class, task -> {
             task.getUrl().set("https://github.com/ViaVersion/ViaProxy/releases/download/v"
-                    + VIAPROXY_VERSION + "/ViaProxy-" + VIAPROXY_VERSION + ".jar");
-            task.getJar().set(extension.getCacheDirectory().map(dir -> dir.file("viaproxy/ViaProxy-" + VIAPROXY_VERSION + ".jar")));
+                    + viaProxyVersion + "/ViaProxy-" + viaProxyVersion + ".jar");
+            task.getJar().set(extension.getCacheDirectory().map(dir -> dir.file("viaproxy/ViaProxy-" + viaProxyVersion + ".jar")));
         });
 
         TaskProvider<CheckEula> checkEula = project.getTasks().register("checkMinecraftEula", CheckEula.class, task -> {
@@ -251,17 +251,20 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         });
 
         Provider<RegularFile> serverJar;
+        TaskProvider<? extends Task> serverJarTask;
         if (type == ServerType.PAPER) {
-            serverJar = project.getTasks().register("downloadPaper_" + id.substring(type.taskPrefix.length()), DownloadPaperTask.class, task -> {
+            TaskProvider<DownloadPaperTask> download = project.getTasks().register("downloadPaper_" + id.substring(type.taskPrefix.length()), DownloadPaperTask.class, task -> {
                 task.setGroup("build setup");
                 task.setDescription("Downloads the latest Paper " + version + " build (cached).");
                 task.getMinecraftVersion().set(version);
                 task.getCacheDirectory().set(cache);
                 task.getServerJar().set(cache.map(c -> c.file("servers/paper-" + version + ".jar")));
                 task.mustRunAfter(checkEula);
-            }).flatMap(DownloadPaperTask::getServerJar);
+            });
+            serverJarTask = download;
+            serverJar = download.flatMap(DownloadPaperTask::getServerJar);
         } else {
-            serverJar = project.getTasks().register("buildSpigot_" + id, BuildSpigotTask.class, task -> {
+            TaskProvider<BuildSpigotTask> build = project.getTasks().register("buildSpigot_" + id, BuildSpigotTask.class, task -> {
                 task.setGroup("build setup");
                 task.setDescription("Builds Spigot " + version + " with BuildTools (cached).");
                 task.getMinecraftVersion().set(version);
@@ -269,13 +272,17 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
                 task.getCacheDirectory().set(cache);
                 task.getServerJar().set(cache.map(c -> c.file("servers/spigot-" + version + ".jar")));
                 task.mustRunAfter(checkEula);
-            }).flatMap(BuildSpigotTask::getServerJar);
+            });
+            serverJarTask = build;
+            serverJar = build.flatMap(BuildSpigotTask::getServerJar);
         }
 
         return project.getTasks().register("serverTest_" + id, ServerTestTask.class, task -> {
             task.setGroup(GROUP);
             task.setDescription("Runs the server tests on " + name + ".");
-            task.dependsOn(checkEula);
+            // The server jar and ViaProxy live in the shared cache, not in task outputs, so the
+            // tasks that put them there are explicit dependencies.
+            task.dependsOn(checkEula, serverJarTask, viaProxy);
             task.getMinecraftVersion().set(version);
             task.getServerName().set(name);
             task.getServerJar().set(serverJar);

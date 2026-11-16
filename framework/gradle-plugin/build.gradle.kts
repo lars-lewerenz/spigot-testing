@@ -2,7 +2,7 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     // Publishes to the Gradle Plugin Portal (see .github/workflows/release.yml).
-    id("com.gradle.plugin-publish") version "2.2.1"
+    alias(libs.plugins.plugin.publish)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -27,7 +27,7 @@ gradlePlugin {
 
 // Unit tests and Gradle TestKit tests (java-gradle-plugin wires TestKit and the plugin under test).
 dependencies {
-    testImplementation(platform("org.junit:junit-bom:5.14.4"))
+    testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -55,7 +55,11 @@ dependencies {
 }
 
 tasks.processResources {
-    val props = mapOf("version" to project.version.toString(), "junitVersion" to "5.14.4")
+    val props = mapOf(
+        "version" to project.version.toString(),
+        "junitVersion" to libs.versions.junit.get(),
+        "viaproxyVersion" to libs.versions.viaproxy.get(),
+    )
     inputs.properties(props)
     filesMatching("**/spigot-testing.properties") {
         expand(props)

@@ -8,10 +8,10 @@ version = "1.0.0"
 
 dependencies {
     // Compiled against the oldest API so the same jar runs on every version below.
-    compileOnly("org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT")
+    compileOnly(libs.spigot.api)
     // Optional integration (softdepend in plugin.yml). The Maven artifact is only the API to
     // compile against; the runnable plugin jar comes from the release download below.
-    compileOnly("me.clip:placeholderapi:2.12.3")
+    compileOnly(libs.placeholderapi)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -28,7 +28,7 @@ spigotTesting {
     // Other plugins installed on the test servers next to Greeter. (Plugin jars from a Maven
     // repository or local files go into the serverTestPlugin configuration instead.)
     pluginUrls.addAll(
-        "https://github.com/PlaceholderAPI/PlaceholderAPI/releases/download/2.12.3/PlaceholderAPI-2.12.3.jar",
+        "https://github.com/PlaceholderAPI/PlaceholderAPI/releases/download/${libs.versions.placeholderapi.get()}/PlaceholderAPI-${libs.versions.placeholderapi.get()}.jar",
         "https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar",
     )
 }

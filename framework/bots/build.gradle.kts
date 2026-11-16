@@ -8,9 +8,9 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 dependencies {
-    implementation("org.geysermc.mcprotocollib:protocol:26.3-4")
-    implementation("net.kyori:adventure-text-serializer-legacy:5.2.0")
-    runtimeOnly("org.slf4j:slf4j-nop:2.0.17")
+    implementation(libs.mcprotocollib)
+    implementation(libs.adventure.text.serializer.legacy)
+    runtimeOnly(libs.slf4j.nop)
 }
 
 configurations.runtimeClasspath {

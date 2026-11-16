@@ -16,6 +16,9 @@ dependencyResolutionManagement {
         maven("https://repo.papermc.io/repository/maven-public/") {
             content { includeGroup("io.papermc.paper"); includeGroup("net.kyori"); includeGroup("net.md-5"); includeGroup("com.mojang") }
         }
+        maven("https://repo.viaversion.com/everything/") {
+            content { includeModule("net.raphimc", "ViaProxy") } // only for the version in libs.versions.toml
+        }
         maven("https://repo.extendedclip.com/releases/") {
             content { includeGroup("me.clip") } // PlaceholderAPI
         }

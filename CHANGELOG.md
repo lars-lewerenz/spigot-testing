@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1]
+
+### Fixes
+
+- **Several plugin projects in one build** (e.g. a multi-module project) failed with "Property has
+  implicit dependency": each project's tasks claimed the shared server cache as their output. The
+  cache is now written under a lock (between projects, and between Gradle processes), so each
+  server jar, Paper download and ViaProxy is fetched once and never by two builds at the same time.
+
+### Releases
+
+- Releases are only published after CI passed on the released commit, and the jars come with a
+  signed build provenance attestation (`gh attestation verify`).
+- Dependencies are kept up to date by Dependabot (version catalog, GitHub Actions pinned to
+  commit SHAs); all 36 servers are tested every week.
+
 ## [0.4.0]
 
 ### Compatibility

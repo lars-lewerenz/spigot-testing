@@ -5,7 +5,8 @@ import org.gradle.work.DisableCachingByDefault;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputFile;
+import java.io.File;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 /**
@@ -18,15 +19,18 @@ public abstract class DownloadViaProxy extends DefaultTask {
     @Input
     public abstract Property<String> getUrl();
 
-    @OutputFile
+    /** In the cache shared by all projects and builds, so not a task output. */
+    @Internal
     public abstract RegularFileProperty getJar();
 
     @TaskAction
     public void download() {
-        if (getJar().get().getAsFile().isFile()) {
-            return;
-        }
-        getLogger().lifecycle("Downloading ViaProxy for the bot clients");
-        SpigotVersions.download(getUrl().get(), getJar().get().getAsFile());
+        File jar = getJar().get().getAsFile();
+        CacheLock.withLock(jar, () -> {
+            if (!jar.isFile()) {
+                getLogger().lifecycle("Downloading ViaProxy for the bot clients");
+                SpigotVersions.download(getUrl().get(), jar);
+            }
+        });
     }
 }

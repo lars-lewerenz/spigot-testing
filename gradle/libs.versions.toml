@@ -1,0 +1,29 @@
+# All versions in one place. Used by the root build (examples), the framework build and
+# tests/failure-paths; Dependabot keeps it up to date (.github/dependabot.yml).
+
+[versions]
+junit = "5.14.4"
+# Bot client: MCProtocolLib speaks the newest protocol; ViaProxy translates to older servers.
+# New Minecraft versions usually need both updated.
+mcprotocollib = "26.3-4"
+viaproxy = "3.4.14"
+adventure = "5.2.0"
+slf4j = "2.0.17"
+spigot-api = "1.8.8-R0.1-SNAPSHOT"
+paper-api = "1.21.11-R0.1-SNAPSHOT"
+placeholderapi = "2.12.3"
+
+[libraries]
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+mcprotocollib = { module = "org.geysermc.mcprotocollib:protocol", version.ref = "mcprotocollib" }
+adventure-text-serializer-legacy = { module = "net.kyori:adventure-text-serializer-legacy", version.ref = "adventure" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+# Not a dependency: the Gradle plugin downloads ViaProxy's release jar for this version at test
+# time. Listed so that Dependabot reports new versions.
+viaproxy = { module = "net.raphimc:ViaProxy", version.ref = "viaproxy" }
+spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot-api" }
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
+placeholderapi = { module = "me.clip:placeholderapi", version.ref = "placeholderapi" }
+
+[plugins]
+plugin-publish = { id = "com.gradle.plugin-publish", version = "2.2.1" }

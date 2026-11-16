@@ -9,6 +9,10 @@ on:
         description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}], optionally with "os" and "project"'
         type: string
         required: true
+      fresh_spigot:
+        description: Build Spigot with BuildTools instead of using the cached jars (picks up new Spigot builds)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,8 +35,8 @@ jobs:
       # Lets Gradle's toolchains use the JDKs installed below instead of downloading them.
       JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           # Every server runs on one of these LTS releases. The last one runs Gradle.
@@ -41,7 +45,7 @@ jobs:
             17
             25
             21
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Task names
         id: names
         # The version is passed on the command line, so any version works, whatever the build
@@ -65,20 +69,20 @@ jobs:
       # Building Spigot with BuildTools takes a few minutes, so the jar is cached. (Paper is a
       # quick download.) Bump the "v1" to force a rebuild, e.g. to pick up new Spigot builds.
       - name: Restore Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot'
+        if: matrix.server == 'Spigot' && !inputs.fresh_spigot
         id: spigot-cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
             ${{ env.SPIGOT_CACHE }}/versions/${{ matrix.version }}.json
           key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
       - name: Build Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
+        if: matrix.server == 'Spigot' && (inputs.fresh_spigot || steps.spigot-cache.outputs.cache-hit != 'true')
         run: ./gradlew :${{ env.PROJECT }}:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
       - name: Save Spigot ${{ matrix.version }}
-        if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        if: matrix.server == 'Spigot' && !inputs.fresh_spigot && steps.spigot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ${{ env.SPIGOT_CACHE }}/servers/spigot-${{ matrix.version }}.jar
@@ -91,7 +95,7 @@ jobs:
           ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
       - name: Upload server logs and reports
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: server-test-results-${{ env.PROJECT }}-${{ matrix.server }}-${{ matrix.version }}-${{ runner.os }}
           path: ${{ env.PROJECT }}/build/spigot-testing/${{ steps.names.outputs.dir }}/results/

@@ -19,7 +19,6 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
-import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.process.ExecOperations;
@@ -49,7 +48,8 @@ public abstract class BuildSpigotTask extends DefaultTask {
     @Internal
     public abstract DirectoryProperty getCacheDirectory();
 
-    @OutputFile
+    /** In the cache shared by all projects and builds, so not a task output. */
+    @Internal
     public abstract RegularFileProperty getServerJar();
 
     @Inject
@@ -64,10 +64,12 @@ public abstract class BuildSpigotTask extends DefaultTask {
         }
         // Downloaded here, before any worker starts, so parallel builds don't race for it.
         File buildTools = new File(getCacheDirectory().get().getAsFile(), "BuildTools.jar");
-        if (!buildTools.isFile()) {
-            getLogger().lifecycle("Downloading BuildTools");
-            SpigotVersions.download(BUILD_TOOLS_URL, buildTools);
-        }
+        CacheLock.withLock(buildTools, () -> {
+            if (!buildTools.isFile()) {
+                getLogger().lifecycle("Downloading BuildTools");
+                SpigotVersions.download(BUILD_TOOLS_URL, buildTools);
+            }
+        });
         JavaLauncher launcher = getJavaLauncher().get();
         getWorkers().noIsolation().submit(Work.class, p -> {
             p.getMinecraftVersion().set(getMinecraftVersion());
@@ -106,9 +108,18 @@ public abstract class BuildSpigotTask extends DefaultTask {
 
         @Override
         public void execute() {
+            File serverJar = getParameters().getServerJar().get().getAsFile();
+            // Another project of this build, or another build, may be building the same version.
+            CacheLock.withLock(serverJar, () -> {
+                if (!serverJar.isFile()) {
+                    build(serverJar);
+                }
+            });
+        }
+
+        private void build(File serverJar) {
             Params p = getParameters();
             String version = p.getMinecraftVersion().get();
-            File serverJar = p.getServerJar().get().getAsFile();
             File cache = p.getCacheDirectory().get().getAsFile();
             // Each version gets its own checkout, so parallel builds don't interfere.
             File workDir = new File(cache, "work/" + version);

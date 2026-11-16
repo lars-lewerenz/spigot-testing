@@ -69,7 +69,8 @@ final class SpigotVersions {
     static void download(String url, File target) {
         try {
             Files.createDirectories(target.getParentFile().toPath());
-            File partial = new File(target.getPath() + ".part");
+            // A unique temporary file: other builds may be downloading the same file right now.
+            File partial = Files.createTempFile(target.getParentFile().toPath(), target.getName(), ".part").toFile();
             HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
             HttpResponse<java.nio.file.Path> response = client.send(
                     HttpRequest.newBuilder(URI.create(url)).build(),

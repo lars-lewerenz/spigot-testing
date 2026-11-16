@@ -3,7 +3,7 @@ plugins {
     id("io.github.lars-lewerenz.spigot-testing")
 }
 dependencies {
-    compileOnly("org.spigotmc:spigot-api:1.8.8-R0.1-SNAPSHOT")
+    compileOnly(libs.spigot.api)
 }
 tasks.withType<JavaCompile>().configureEach {
     options.release = 8

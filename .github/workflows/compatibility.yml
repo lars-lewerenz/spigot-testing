@@ -1,10 +1,18 @@
 name: Compatibility
 
 # The example plugin's server tests on every major Minecraft version, on Spigot and Paper
-# (36 servers). Started by hand, since it uses about an hour of Actions minutes the first time
-# (BuildTools) and about 40 minutes afterwards.
+# (36 servers), every Monday and on demand. Spigot is built fresh with BuildTools and Paper's
+# latest build is downloaded, so new server builds that break something show up within a week.
+# (Free for public repositories.)
 on:
+  schedule:
+    - cron: "0 4 * * 1"
   workflow_dispatch:
+    inputs:
+      fresh_spigot:
+        description: Build Spigot fresh instead of using the cached jars
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -15,6 +23,8 @@ jobs:
     if: vars.ACCEPT_MINECRAFT_EULA == 'true'
     uses: ./.github/workflows/server-tests.yml
     with:
+      # Scheduled runs always build fresh; manual runs ask.
+      fresh_spigot: ${{ github.event_name == 'schedule' || inputs.fresh_spigot }}
       servers: >-
         [{"server": "Spigot", "version": "1.8.8"},
          {"server": "Spigot", "version": "1.9.4"},
