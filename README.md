@@ -427,6 +427,7 @@ ItemStack paper = sync(() -> alex.player().getOpenInventory().getTopInventory().
 | `selectHotbarSlot(slot)` | like pressing 1–9 |
 | `quit()` · `isOnline()` | disconnects and waits until the server has removed the player |
 | `awaitKick()` | waits until the server disconnects the bot and returns the reason it gave |
+| `Bots.join(name, "1.8.8")` | joins as a player on another client version (needs ViaVersion on the server, see below) |
 | `Bots.expectRejection(name)` | joins a bot the server must turn away and returns the reason |
 
 > [!TIP]
@@ -519,6 +520,27 @@ void theSidebarCountsGreetings() {
     assertEquals(ChatColor.GOLD + "Greeter", view.sidebarTitle());
 }
 ```
+
+### 🕹️ Players on other client versions
+
+Many servers run [ViaVersion](https://github.com/ViaVersion/ViaVersion) so players on older or
+newer clients can join. `Bots.join(name, clientVersion)` joins as such a player, and everything
+the bot sees and sends goes through ViaVersion's translation, as it would for that player:
+
+```java
+@Test
+void oneEightPlayersAreWelcomed() {
+    Bot oldie = Bots.join("Oldie", "1.8.8");                  // on a 26.3 server
+
+    assertEquals(ChatColor.GOLD + "Welcome to Paper, Oldie!", oldie.awaitMessage("Welcome"));
+}
+```
+
+The server needs the plugins a real server would use, from their releases: ViaVersion, plus
+ViaBackwards for clients older than the server, plus ViaRewind for 1.7 and 1.8 clients
+(`example-paper-plugin/build.gradle.kts` installs all three). Without them the server turns the
+bot away (`Outdated client!`). Current releases need Java 17+, which leaves out the servers that
+run on Java 8 (1.8.8 – 1.16.5) unless you pick older releases for those.
 
 <details>
 <summary><b>How bots reach every version</b></summary>
@@ -680,7 +702,8 @@ framework/                 the framework (an included Gradle build)
 ├── gradle-plugin/         Gradle plugin io.github.lars-lewerenz.spigot-testing (Java 17+)
 ├── runtime/               runs inside the server: ServerTest, Bots, EventRecorder, JUnit runner (Java 8)
 └── bots/                  bot controller: MCProtocolLib + ViaProxy (Java 21), bundled into the plugin
-example-paper-plugin/      a Paper plugin (paper-plugin.yml, Brigadier, Adventure) and its tests
+example-paper-plugin/      a Paper plugin (paper-plugin.yml, Brigadier, Adventure) and its tests,
+                           including players on other client versions (ViaVersion)
 tests/failure-paths/       projects that must fail, and check.sh, which checks they fail clearly
 example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu GUI and a compass that
                            opens it, welcome messages, a protected spawn area, waving at players,

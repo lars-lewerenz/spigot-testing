@@ -33,6 +33,7 @@ import org.geysermc.mcprotocollib.network.event.session.DisconnectedEvent;
 import org.geysermc.mcprotocollib.network.event.session.SessionAdapter;
 import org.geysermc.mcprotocollib.network.factory.ClientNetworkSessionFactory;
 import org.geysermc.mcprotocollib.network.packet.Packet;
+import org.geysermc.mcprotocollib.protocol.MinecraftConstants;
 import org.geysermc.mcprotocollib.protocol.MinecraftProtocol;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ClickItemAction;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ContainerAction;
@@ -60,6 +61,10 @@ final class Bot {
     private static final int JOIN_ATTEMPTS = 3;
     /** How ViaProxy kicks a client when it fails internally (not when the server rejects it). */
     private static final String VIAPROXY_ERROR = "An unhandled error occurred in your connection";
+    /** The client version that matches the server's, detected by ViaProxy. */
+    static final String SERVER_VERSION = "auto";
+    /** Separates the parts of the handshake address for ViaProxy. */
+    private static final char BEL = 7;
 
     private final String name;
     private final ClientSession session;
@@ -106,13 +111,18 @@ final class Bot {
      * hangs in the configuration phase, and a rare race in ViaProxy's login handling ends the
      * connection with its "unhandled error" message. Rejections by the server itself (bans,
      * whitelist, a plugin cancelling the login) are not retried; they fail the join right away.
+     *
+     * <p>{@code version} is the client version ViaProxy presents to the server ({@code auto}: the
+     * server's own). It travels in the handshake address, in the format of ViaProxy's internal
+     * wildcard domain handling: {@code original-address BEL target-address BEL version}.
      */
-    static Bot connect(String name, String host, int port) throws Exception {
+    static Bot connect(String name, String host, int port, int serverPort, String version) throws Exception {
         for (int attempt = 1; ; attempt++) {
             ClientSession session = ClientNetworkSessionFactory.factory()
                     .setAddress(host, port)
                     .setProtocol(new MinecraftProtocol(name))
                     .create();
+            session.setFlag(MinecraftConstants.CLIENT_HOST, "127.0.0.1" + BEL + "127.0.0.1:" + serverPort + BEL + version);
             Bot bot = new Bot(name, session);
             session.addListener(bot.new Listener());
             session.connect(true);

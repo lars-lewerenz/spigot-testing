@@ -33,6 +33,10 @@ final class ViaProxyProcess {
         this.workDir = workDir;
     }
 
+    int serverPort() {
+        return serverPort;
+    }
+
     synchronized int port() {
         return port;
     }
@@ -54,6 +58,8 @@ final class ViaProxyProcess {
                 "--bind-address", "127.0.0.1:" + port,
                 "--target-address", "127.0.0.1:" + serverPort,
                 "--auth-method", "NONE",
+                // Lets each bot pick the client version ViaProxy translates to (see Bot#connect).
+                "--wildcard-domain-handling", "INTERNAL",
                 "--chat-signing", "false",
                 "--log-ips", "false"))
                 .directory(dir.toFile())

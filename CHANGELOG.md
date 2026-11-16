@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### New
+
+- **Players on other client versions:** `Bots.join(name, "1.8.8")` joins as a player on that
+  client version, for servers that let other clients in with ViaVersion (and ViaBackwards and
+  ViaRewind). The Paper example installs all three and tests a 1.8.8, a 1.12.2 and a 1.20.4
+  player.
+
 ## [0.7.0]
 
 ### New

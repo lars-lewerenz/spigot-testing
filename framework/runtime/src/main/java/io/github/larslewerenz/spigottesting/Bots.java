@@ -27,8 +27,23 @@ public final class Bots {
      * player is online. Only callable from tests annotated with {@link OffMainThread}.
      */
     public static Bot join(String name) {
+        return join(name, null);
+    }
+
+    /**
+     * Connects a bot that plays on another client version than the server's, e.g.
+     * {@code join("Alex", "1.8.8")} on a 26.3 server, and waits until the player is online. The
+     * server must accept that client, like a real one would: with ViaVersion installed (and
+     * ViaBackwards for older clients, ViaRewind for 1.7 and 1.8), see the README. Everything the
+     * bot sees and sends goes through that translation, so tests see what players on that version
+     * see. Only callable from tests annotated with {@link OffMainThread}.
+     *
+     * @param clientVersion a Minecraft version such as {@code "1.8.8"} or {@code "1.20.4"}, or null
+     *     for the server's own
+     */
+    public static Bot join(String name, String clientVersion) {
         requireOffMainThread();
-        BotControl.join(name);
+        BotControl.join(name, clientVersion);
         long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
         Player player;
         while ((player = ServerTest.sync(() -> Bukkit.getPlayerExact(name))) == null) {

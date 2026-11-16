@@ -23,8 +23,9 @@ public final class BotControl {
     private BotControl() {
     }
 
-    public static void join(String name) {
-        request("JOIN " + name);
+    /** Joins as the given client version, or as the server's own version if it is null. */
+    public static void join(String name, String clientVersion) {
+        request("JOIN " + name + (clientVersion == null ? "" : " " + clientVersion));
     }
 
     /** Tries to join; returns the server's reason if it refused, or null if the bot got in (and left again). */

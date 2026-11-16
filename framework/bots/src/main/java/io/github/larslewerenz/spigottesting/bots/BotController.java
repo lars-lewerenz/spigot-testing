@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * runtime talks to it over a small line protocol on localhost, one request per connection:
  *
  * <pre>
- * JOIN name              -> OK | ERR reason
+ * JOIN name [version]    -> OK | ERR reason    (version: the client version to join as; default: the server's)
  * REJECT name            -> OK REJECTED base64(reason) | OK JOINED   (the bot quits again right away)
  * KICKED name            -> OK base64(reason) | OK  (still online, or never kicked)
  * CHAT name base64(text) -> OK | ERR reason    (text starting with "/" is sent as a command)
@@ -47,6 +47,7 @@ import java.util.regex.Pattern;
 public final class BotController {
 
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_]{1,16}");
+    private static final Pattern VERSION = Pattern.compile("[A-Za-z0-9._-]{1,32}");
 
     private final ViaProxyProcess proxy;
     private final Map<String, Bot> bots = new ConcurrentHashMap<>();
@@ -126,7 +127,21 @@ public final class BotController {
                 }
                 proxy.ensureStarted();
                 kicks.remove(name);
-                Bot bot = Bot.connect(name, "127.0.0.1", proxy.port());
+                String version = request.length > 2 ? request[2] : Bot.SERVER_VERSION;
+                if (!VERSION.matcher(version).matches()) {
+                    throw new IllegalArgumentException("Invalid client version '" + version + "'");
+                }
+                Bot bot;
+                try {
+                    bot = Bot.connect(name, "127.0.0.1", proxy.port(), proxy.serverPort(), version);
+                } catch (IllegalStateException e) {
+                    if (!version.equals(Bot.SERVER_VERSION) && oneLine(e).contains("endOfStream")) {
+                        // ViaProxy closes the connection without a word for versions it doesn't know.
+                        throw new IllegalStateException(oneLine(e) + " (is " + version
+                                + " a Minecraft version ViaProxy knows, like 1.8.8 or 1.20.4?)", e);
+                    }
+                    throw e;
+                }
                 bots.put(name, bot);
                 bot.onDisconnect(() -> {
                     if (bots.remove(name, bot) && bot.kickReason() != null) {
@@ -141,7 +156,7 @@ public final class BotController {
                 }
                 proxy.ensureStarted();
                 try {
-                    Bot.connect(name, "127.0.0.1", proxy.port()).quit();
+                    Bot.connect(name, "127.0.0.1", proxy.port(), proxy.serverPort(), Bot.SERVER_VERSION).quit();
                     out.println("OK JOINED");
                 } catch (Bot.Rejected rejected) {
                     out.println("OK REJECTED " + base64(rejected.reason()));

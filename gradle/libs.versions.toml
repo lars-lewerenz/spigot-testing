@@ -15,6 +15,10 @@ slf4j = "2.0.20"
 spigot-api = "1.8.8-R0.1-SNAPSHOT"
 paper-api = "1.21.11-R0.1-SNAPSHOT"
 placeholderapi = "2.12.3"
+# Installed on the Paper example's servers, so bots can join as other client versions.
+viaversion = "5.12.2"
+viabackwards = "5.12.2"
+viarewind = "4.2.0"
 errorprone = "2.52.0"
 
 [libraries]
@@ -28,6 +32,7 @@ viaproxy = { module = "net.raphimc:ViaProxy", version.ref = "viaproxy" }
 spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot-api" }
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
 placeholderapi = { module = "me.clip:placeholderapi", version.ref = "placeholderapi" }
+viaversion-api = { module = "com.viaversion:viaversion-api", version.ref = "viaversion" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 
 [plugins]

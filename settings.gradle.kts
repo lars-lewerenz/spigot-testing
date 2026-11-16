@@ -17,7 +17,10 @@ dependencyResolutionManagement {
             content { includeGroup("io.papermc.paper"); includeGroup("net.kyori"); includeGroup("net.md-5"); includeGroup("com.mojang") }
         }
         maven("https://repo.viaversion.com/everything/") {
-            content { includeModule("net.raphimc", "ViaProxy") } // only for the version in libs.versions.toml
+            content {
+                includeModule("net.raphimc", "ViaProxy") // only for the version in libs.versions.toml
+                includeModule("com.viaversion", "viaversion-api") // the Paper example's tests
+            }
         }
         maven("https://repo.extendedclip.com/releases/") {
             content { includeGroup("me.clip") } // PlaceholderAPI
