@@ -33,6 +33,18 @@ final class Logs {
         }
     }
 
+    /** The "Error occurred while enabling <plugin> …" line for the given plugin, or null. */
+    static String enableError(File file, String pluginName) {
+        String marker = "Error occurred while enabling " + pluginName + " ";
+        try {
+            return Files.readAllLines(file.toPath(), StandardCharsets.UTF_8).stream()
+                    .filter(line -> line.contains(marker))
+                    .findFirst().orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     static String tail(File file, int lines) {
         try {
             List<String> all = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);

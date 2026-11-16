@@ -1,0 +1,4 @@
+name: BrokenPlugin
+version: '1'
+main: fixture.DoesNotExist
+api-version: '1.13'

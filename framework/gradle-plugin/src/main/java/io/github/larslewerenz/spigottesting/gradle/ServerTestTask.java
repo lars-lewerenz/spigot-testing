@@ -303,7 +303,8 @@ public abstract class ServerTestTask extends DefaultTask {
                 }
             }
             pump.join(5000);
-            report(version, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
+            String pluginName = GenerateHarnessResources.readPluginName(p.getPluginJar().get().getAsFile());
+            report(version, pluginName, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
         }
 
         private static int freePort() throws IOException {
@@ -399,7 +400,8 @@ public abstract class ServerTestTask extends DefaultTask {
             }
         }
 
-        private static void report(String version, File resultsDir, File log, Duration took) throws IOException {
+        private static void report(String version, String pluginName, File resultsDir, File log, Duration took)
+                throws IOException {
             File summaryFile = new File(resultsDir, "summary.properties");
             if (!summaryFile.isFile()) {
                 File error = new File(resultsDir, "error.txt");
@@ -416,6 +418,13 @@ public abstract class ServerTestTask extends DefaultTask {
             LOGGER.lifecycle("[{}] {}: {} tests, {} passed, {} failed, {} skipped, {} aborted ({} s)",
                     version, summary.getProperty("server"), found, summary.getProperty("succeeded"), failed,
                     summary.getProperty("skipped"), summary.getProperty("aborted"), took.toSeconds());
+            String enableError = Logs.enableError(log, pluginName);
+            if (enableError != null) {
+                // Spigot keeps a plugin enabled when its onEnable throws, so the tests ran; the
+                // plugin is still broken on this server.
+                throw new GradleException("The plugin under test (" + pluginName + ") failed while enabling on " + version
+                        + ":\n" + enableError + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
+            }
             if (failed > 0) {
                 throw new GradleException(failed + " server test(s) failed on " + version + ":\n\n"
                         + Files.readString(new File(resultsDir, "failures.txt").toPath())

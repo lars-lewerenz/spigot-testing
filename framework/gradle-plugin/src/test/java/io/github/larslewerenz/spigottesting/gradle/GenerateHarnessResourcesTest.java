@@ -1,7 +1,9 @@
 package io.github.larslewerenz.spigottesting.gradle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -54,10 +56,38 @@ class GenerateHarnessResourcesTest {
         assertEquals(List.of("BarTest", "com.example.FooTest"), Files.readAllLines(dir.resolve("out/spigot-testing/tests.txt")));
     }
 
+    @Test
+    void paperPluginsGetAPaperPluginHarness() throws IOException {
+        Files.createDirectories(dir.resolve("classes"));
+        Project project = ProjectBuilder.builder().withProjectDir(dir.toFile()).build();
+        GenerateHarnessResources task = project.getTasks().register("generate", GenerateHarnessResources.class).get();
+        task.getPluginJar().set(jar("paper.jar", "paper-plugin.yml", "name: PaperGreeter\nmain: x.Y\n").toFile());
+        task.getOtherPlugins().from(jar("vault.jar", "name: Vault\n"));
+        task.getTestClassesDirs().from(dir.resolve("classes"));
+        task.getOutputDirectory().set(dir.resolve("out").toFile());
+
+        task.generate();
+
+        assertFalse(Files.exists(dir.resolve("out/plugin.yml")));
+        String paperPluginYml = Files.readString(dir.resolve("out/paper-plugin.yml"));
+        assertTrue(paperPluginYml.contains("""
+                    'PaperGreeter':
+                      load: BEFORE
+                      required: true
+                      join-classpath: true
+                """), paperPluginYml);
+        assertTrue(paperPluginYml.contains("'Vault':\n      load: BEFORE\n      required: false"), paperPluginYml);
+        assertEquals("PaperGreeter", Files.readString(dir.resolve("out/spigot-testing/plugin-under-test.txt")).trim());
+    }
+
     private Path jar(String name, String pluginYml) throws IOException {
+        return jar(name, "plugin.yml", pluginYml);
+    }
+
+    private Path jar(String name, String descriptor, String pluginYml) throws IOException {
         Path jar = dir.resolve(name);
         try (OutputStream out = Files.newOutputStream(jar); ZipOutputStream zip = new ZipOutputStream(out)) {
-            zip.putNextEntry(new ZipEntry("plugin.yml"));
+            zip.putNextEntry(new ZipEntry(descriptor));
             zip.write(pluginYml.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
         }

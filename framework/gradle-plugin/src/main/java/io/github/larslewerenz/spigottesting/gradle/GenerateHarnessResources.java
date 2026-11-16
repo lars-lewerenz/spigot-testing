@@ -33,6 +33,9 @@ import org.gradle.api.tasks.TaskAction;
 @DisableCachingByDefault(because = "Generating two small files is faster than the build cache")
 public abstract class GenerateHarnessResources extends DefaultTask {
 
+    static final String PLUGIN_YML = "plugin.yml";
+    static final String PAPER_PLUGIN_YML = "paper-plugin.yml";
+
     private static final Pattern NAME = Pattern.compile("(?m)^name\\s*:\\s*['\"]?([^'\"#\\r\\n]+?)['\"]?\\s*(#.*)?$");
 
     @InputFile
@@ -54,20 +57,44 @@ public abstract class GenerateHarnessResources extends DefaultTask {
     @TaskAction
     public void generate() throws IOException {
         Path out = Files.createDirectories(getOutputDirectory().get().getAsFile().toPath());
-        String target = readPluginName(getPluginJar().get().getAsFile());
+        File pluginJar = getPluginJar().get().getAsFile();
+        String target = readPluginName(pluginJar);
         List<String> others = new ArrayList<>();
         for (File jar : getOtherPlugins().getFiles()) {
-            others.add(quote(readPluginName(jar)));
+            others.add(readPluginName(jar));
         }
 
-        Files.writeString(out.resolve("plugin.yml"), String.join("\n",
-                "name: SpigotTesting",
-                "version: '1.0'",
-                "main: io.github.larslewerenz.spigottesting.internal.HarnessPlugin",
-                "api-version: '1.13'",
-                "depend: [" + quote(target) + "]",
-                "softdepend: [" + String.join(", ", others) + "]",
-                ""));
+        // Paper plugins (paper-plugin.yml only) get a Paper plugin as harness: Paper isolates
+        // their classes, and only a Paper plugin dependency with join-classpath can see them.
+        Files.deleteIfExists(out.resolve(PLUGIN_YML));
+        Files.deleteIfExists(out.resolve(PAPER_PLUGIN_YML));
+        if (isPaperPlugin(pluginJar)) {
+            List<String> lines = new ArrayList<>(List.of(
+                    "name: SpigotTesting",
+                    "version: '1.0'",
+                    "main: io.github.larslewerenz.spigottesting.internal.HarnessPlugin",
+                    "api-version: '1.19'",
+                    "dependencies:",
+                    "  server:"));
+            lines.addAll(paperDependency(target, true));
+            for (String other : others) {
+                lines.addAll(paperDependency(other, false));
+            }
+            lines.add("");
+            Files.writeString(out.resolve(PAPER_PLUGIN_YML), String.join("\n", lines));
+        } else {
+            Files.writeString(out.resolve(PLUGIN_YML), String.join("\n",
+                    "name: SpigotTesting",
+                    "version: '1.0'",
+                    "main: io.github.larslewerenz.spigottesting.internal.HarnessPlugin",
+                    "api-version: '1.13'",
+                    "depend: [" + quote(target) + "]",
+                    "softdepend: [" + String.join(", ", others.stream().map(GenerateHarnessResources::quote).toList()) + "]",
+                    ""));
+        }
+        // Read by the harness to check that the plugin under test is enabled.
+        Files.createDirectories(out.resolve("spigot-testing"));
+        Files.writeString(out.resolve("spigot-testing/plugin-under-test.txt"), target + "\n");
 
         List<String> classes = new ArrayList<>();
         for (File dir : getTestClassesDirs().getFiles()) {
@@ -88,6 +115,21 @@ public abstract class GenerateHarnessResources extends DefaultTask {
         Files.write(list, classes, StandardCharsets.UTF_8);
     }
 
+    private static List<String> paperDependency(String name, boolean required) {
+        return List.of(
+                "    " + quote(name) + ":",
+                "      load: BEFORE",
+                "      required: " + required,
+                "      join-classpath: true");
+    }
+
+    /** Whether the jar is a Paper plugin: a paper-plugin.yml and no plugin.yml. */
+    static boolean isPaperPlugin(File jar) throws IOException {
+        try (ZipFile zip = new ZipFile(jar)) {
+            return zip.getEntry(PLUGIN_YML) == null && zip.getEntry(PAPER_PLUGIN_YML) != null;
+        }
+    }
+
     /** The top-level {@code name} of a plugin.yml, or null. */
     static String pluginName(String pluginYml) {
         Matcher m = NAME.matcher(pluginYml);
@@ -98,16 +140,20 @@ public abstract class GenerateHarnessResources extends DefaultTask {
         return "'" + yamlString.replace("'", "''") + "'";
     }
 
-    private static String readPluginName(File pluginJar) throws IOException {
+    /** The name in a plugin jar's plugin.yml, or its paper-plugin.yml if it has only that. */
+    static String readPluginName(File pluginJar) throws IOException {
         try (ZipFile zip = new ZipFile(pluginJar)) {
-            ZipEntry entry = zip.getEntry("plugin.yml");
+            ZipEntry entry = zip.getEntry(PLUGIN_YML);
             if (entry == null) {
-                throw new GradleException(pluginJar + " has no plugin.yml");
+                entry = zip.getEntry(PAPER_PLUGIN_YML);
+            }
+            if (entry == null) {
+                throw new GradleException(pluginJar + " has neither a plugin.yml nor a paper-plugin.yml");
             }
             try (InputStream in = zip.getInputStream(entry)) {
                 String name = pluginName(new String(in.readAllBytes(), StandardCharsets.UTF_8));
                 if (name == null) {
-                    throw new GradleException("No 'name' in the plugin.yml of " + pluginJar);
+                    throw new GradleException("No 'name' in the " + entry.getName() + " of " + pluginJar);
                 }
                 return name;
             }

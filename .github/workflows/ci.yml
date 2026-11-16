@@ -45,6 +45,34 @@ jobs:
             framework/*/build/reports/tests/
             example-plugin/build/reports/tests/
 
+  failure-reporting:
+    name: Failure reporting
+    needs: build
+    # Starts servers too, so it needs the EULA accepted (see server-tests).
+    if: vars.ACCEPT_MINECRAFT_EULA == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            17
+            25
+            21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Restore Spigot 1.8.8
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.gradle/caches/spigot-testing/servers/spigot-1.8.8.jar
+            ~/.gradle/caches/spigot-testing/versions/1.8.8.json
+          key: spigot-1.8.8-v1
+      - name: Projects that must fail, fail clearly
+        run: tests/failure-paths/check.sh -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
   server-tests:
     name: Server tests
     needs: build
@@ -66,4 +94,6 @@ jobs:
          {"server": "Paper", "version": "1.21.11"},
          {"server": "Paper", "version": "26.3"},
          {"server": "Spigot", "version": "1.8.8", "os": "windows-latest"},
-         {"server": "Paper", "version": "26.3", "os": "windows-latest"}]
+         {"server": "Paper", "version": "26.3", "os": "windows-latest"},
+         {"project": "example-paper-plugin", "server": "Paper", "version": "1.21.11"},
+         {"project": "example-paper-plugin", "server": "Paper", "version": "26.3"}]

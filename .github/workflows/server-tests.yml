@@ -1,12 +1,12 @@
 name: Server tests
 
-# Runs the example plugin's server tests on a list of servers, one job each.
+# Runs an example plugin's server tests on a list of servers, one job each.
 # Used by ci.yml (core servers) and compatibility.yml (every major version).
 on:
   workflow_call:
     inputs:
       servers:
-        description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}], optionally with "os"'
+        description: 'JSON list of servers, e.g. [{"server": "Spigot", "version": "1.8.8"}], optionally with "os" and "project"'
         type: string
         required: true
 
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   server-test:
-    name: ${{ matrix.server }} ${{ matrix.version }}${{ matrix.os && format(' ({0})', matrix.os) || '' }}
+    name: "${{ matrix.project && format('{0} on ', matrix.project) || '' }}${{ matrix.server }} ${{ matrix.version }}${{ matrix.os && format(' ({0})', matrix.os) || '' }}"
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     defaults:
       run:
@@ -27,6 +27,7 @@ jobs:
         include: ${{ fromJSON(inputs.servers) }}
     env:
       SPIGOT_CACHE: ~/.gradle/caches/spigot-testing
+      PROJECT: ${{ matrix.project || 'example-plugin' }}
       # Lets Gradle's toolchains use the JDKs installed below instead of downloading them.
       JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
     steps:
@@ -74,7 +75,7 @@ jobs:
           key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
       - name: Build Spigot ${{ matrix.version }}
         if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
-        run: ./gradlew :example-plugin:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
+        run: ./gradlew :${{ env.PROJECT }}:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
       - name: Save Spigot ${{ matrix.version }}
         if: matrix.server == 'Spigot' && steps.spigot-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
@@ -86,11 +87,11 @@ jobs:
 
       - name: Run server tests
         run: >-
-          ./gradlew :example-plugin:${{ steps.names.outputs.task }} -PspigotTesting.acceptEula=true
+          ./gradlew :${{ env.PROJECT }}:${{ steps.names.outputs.task }} -PspigotTesting.acceptEula=true
           ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
       - name: Upload server logs and reports
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: server-test-results-${{ matrix.server }}-${{ matrix.version }}-${{ runner.os }}
-          path: example-plugin/build/spigot-testing/${{ steps.names.outputs.dir }}/results/
+          name: server-test-results-${{ env.PROJECT }}-${{ matrix.server }}-${{ matrix.version }}-${{ runner.os }}
+          path: ${{ env.PROJECT }}/build/spigot-testing/${{ steps.names.outputs.dir }}/results/

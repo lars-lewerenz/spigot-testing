@@ -1,0 +1,4 @@
+name: FailingTest
+version: '1'
+main: fixture.Fixture
+api-version: '1.13'

@@ -1,0 +1,5 @@
+name: PaperGreeter
+version: '1.0.0'
+main: io.github.larslewerenz.papergreeter.PaperGreeter
+api-version: '1.21'
+description: Example Paper plugin for spigot-testing
