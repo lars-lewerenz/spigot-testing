@@ -8,7 +8,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class GreeterPlugin extends JavaPlugin implements Listener {
@@ -51,6 +53,32 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     void greet(CommandSender sender, String name) {
         sender.sendMessage(Greetings.format(getConfig().getString("greeting"), name));
         greetings++;
+    }
+
+    @EventHandler
+    public void onLogin(PlayerLoginEvent event) {
+        String name = event.getPlayer().getName();
+        for (String banned : getConfig().getStringList("banned-names")) {
+            if (banned.equalsIgnoreCase(name)) {
+                event.disallow(PlayerLoginEvent.Result.KICK_OTHER, Greetings.format(getConfig().getString("banned-name-message"), name));
+                return;
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onChat(AsyncPlayerChatEvent event) {
+        String message = event.getMessage().toLowerCase(java.util.Locale.ROOT);
+        for (String word : getConfig().getStringList("kick-words")) {
+            if (message.contains(word.toLowerCase(java.util.Locale.ROOT))) {
+                event.setCancelled(true);
+                Player player = event.getPlayer();
+                String reason = Greetings.format(getConfig().getString("kick-message"), player.getName());
+                // Chat arrives off the main thread; kicking has to happen on it.
+                getServer().getScheduler().runTask(this, () -> player.kickPlayer(reason));
+                return;
+            }
+        }
     }
 
     @EventHandler

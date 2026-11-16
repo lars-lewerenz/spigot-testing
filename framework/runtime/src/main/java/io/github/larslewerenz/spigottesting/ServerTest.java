@@ -71,14 +71,26 @@ public final class ServerTest {
         return ConfigChange.set(plugin, path, value);
     }
 
-    /** The kind of server the tests run on: {@code "spigot"} or {@code "paper"}. */
-    public static String serverType() {
-        return System.getProperty("spigottesting.serverType", "spigot");
+    /** The kind of server the tests run on. */
+    public static ServerType serverType() {
+        return "paper".equals(System.getProperty("spigottesting.serverType")) ? ServerType.PAPER : ServerType.SPIGOT;
     }
 
-    /** The Minecraft version the tests run on, as configured in the build, e.g. {@code "1.8.8"}. */
+    /** The Minecraft version the tests run on, e.g. {@code "1.8.8"}. */
     public static String minecraftVersion() {
-        return System.getProperty("spigottesting.minecraftVersion", "");
+        String configured = System.getProperty("spigottesting.minecraftVersion", "");
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        // e.g. "1.8.8-R0.1-SNAPSHOT"
+        String bukkit = Bukkit.getBukkitVersion();
+        int dash = bukkit.indexOf('-');
+        return dash < 0 ? bukkit : bukkit.substring(0, dash);
+    }
+
+    /** Whether the tests run on the given Minecraft version or a newer one, e.g. {@code isMinecraftAtLeast("1.13")}. */
+    public static boolean isMinecraftAtLeast(String version) {
+        return MinecraftVersion.parse(minecraftVersion()).isAtLeast(MinecraftVersion.parse(version));
     }
 
     /**

@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0]
+
+### New
+
+- **Tests for some servers only:** `@EnabledOnServer(ServerType.PAPER)` and
+  `@EnabledForMinecraftRange(min = "1.13", max = "1.16.5")` (either end may be left out) skip a
+  test or class on the other servers. `ServerTest.isMinecraftAtLeast("1.13")` and
+  `MinecraftVersion` compare versions in code.
+- **Rejected logins and kicks:** `Bots.expectRejection(name)` returns the reason the server gave
+  for turning a bot away (bans, the whitelist, a plugin disallowing the login) and fails if the bot
+  gets in; `bot.awaitKick()` waits for the server to disconnect a bot and returns the reason.
+- **Java per server:** `javaVersions.put("1.8.8", 17)` runs a server on another Java than the
+  oldest LTS its version supports. BuildTools still builds Spigot with the Java it needs.
+
+### API changes
+
+- `ServerTest.serverType()` returns `ServerType.SPIGOT` or `ServerType.PAPER` instead of a string.
+- `EventRecorder.closeAll()` and `ConfigChange.restoreAll()` are no longer public; they were only
+  meant for the framework's own cleanup after each test. The `internal` package is left out of the
+  Javadoc and may change in any release.
+
+### Quality
+
+- Unit tests for the runtime and the bot client (version comparison, chat rendering).
+- Javadoc is checked strictly (broken links, HTML, tags) and warnings fail the build.
+
 ## [0.4.1]
 
 ### Fixes

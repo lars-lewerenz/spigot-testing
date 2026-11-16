@@ -6,3 +6,9 @@ welcome: '&eWelcome, %name%!'
 block-creepers: true
 # Skip the night: set the time back to morning whenever it gets dark.
 lock-day: true
+# Players with these names are turned away at login.
+banned-names: [Herobrine]
+banned-name-message: '&cThe name %name% is not allowed here.'
+# Players who write one of these words are kicked.
+kick-words: [grief]
+kick-message: '&cNo griefing, %name%!'

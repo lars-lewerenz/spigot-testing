@@ -135,6 +135,25 @@ public final class Bot {
         BotControl.closeInventory(name);
     }
 
+    /**
+     * Waits up to 10 seconds for the server to disconnect this bot (a kick, a ban, ...) and returns
+     * the reason it sent, with {@code §} color codes.
+     */
+    public String awaitKick() {
+        Bots.requireOffMainThread();
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        do {
+            String reason = BotControl.kickReason(name);
+            if (reason != null) {
+                Bots.awaitOffline(name);
+                Bots.forget(this);
+                return reason;
+            }
+            ServerTest.awaitTicks(1);
+        } while (System.currentTimeMillis() < deadline);
+        throw new AssertionError(name + " was not kicked within " + MESSAGE_TIMEOUT_MILLIS / 1000 + " s");
+    }
+
     /** Disconnects the client and waits until the server has removed the player. */
     public void quit() {
         Bots.requireOffMainThread();

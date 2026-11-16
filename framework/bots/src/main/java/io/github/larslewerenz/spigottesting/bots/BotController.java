@@ -20,6 +20,8 @@ import java.util.regex.Pattern;
  *
  * <pre>
  * JOIN name              -> OK | ERR reason
+ * REJECT name            -> OK REJECTED base64(reason) | OK JOINED   (the bot quits again right away)
+ * KICKED name            -> OK base64(reason) | OK  (still online, or never kicked)
  * CHAT name base64(text) -> OK | ERR reason    (text starting with "/" is sent as a command)
  * MESSAGES name          -> OK n, then n lines of base64(message)
  * QUIT name              -> OK
@@ -37,6 +39,8 @@ public final class BotController {
 
     private final ViaProxyProcess proxy;
     private final Map<String, Bot> bots = new ConcurrentHashMap<>();
+    /** Why the server disconnected a bot, by name, until the name joins again. */
+    private final Map<String, String> kicks = new ConcurrentHashMap<>();
 
     private BotController(ViaProxyProcess proxy) {
         this.proxy = proxy;
@@ -110,10 +114,31 @@ public final class BotController {
                     throw new IllegalStateException(name + " is already online");
                 }
                 proxy.ensureStarted();
+                kicks.remove(name);
                 Bot bot = Bot.connect(name, "127.0.0.1", proxy.port());
                 bots.put(name, bot);
-                bot.onDisconnect(() -> bots.remove(name, bot));
+                bot.onDisconnect(() -> {
+                    if (bots.remove(name, bot) && bot.kickReason() != null) {
+                        kicks.put(name, bot.kickReason());
+                    }
+                });
                 out.println("OK");
+            }
+            case "REJECT" -> {
+                if (bots.containsKey(name)) {
+                    throw new IllegalStateException(name + " is already online");
+                }
+                proxy.ensureStarted();
+                try {
+                    Bot.connect(name, "127.0.0.1", proxy.port()).quit();
+                    out.println("OK JOINED");
+                } catch (Bot.Rejected rejected) {
+                    out.println("OK REJECTED " + base64(rejected.reason()));
+                }
+            }
+            case "KICKED" -> {
+                String reason = kicks.get(name);
+                out.println(reason == null ? "OK" : "OK " + base64(reason));
             }
             case "CHAT" -> {
                 bot(name).chat(new String(Base64.getDecoder().decode(request[2]), StandardCharsets.UTF_8));
@@ -123,12 +148,12 @@ public final class BotController {
                 List<String> messages = bot(name).messages();
                 out.println("OK " + messages.size());
                 for (String message : messages) {
-                    out.println(Base64.getEncoder().encodeToString(message.getBytes(StandardCharsets.UTF_8)));
+                    out.println(base64(message));
                 }
             }
             case "INVENTORY" -> {
                 String title = bot(name).openContainerTitle();
-                out.println(title == null ? "OK" : "OK " + Base64.getEncoder().encodeToString(title.getBytes(StandardCharsets.UTF_8)));
+                out.println(title == null ? "OK" : "OK " + base64(title));
             }
             case "CLICK" -> {
                 String[] args = request[2].split(" ", 2);
@@ -140,6 +165,7 @@ public final class BotController {
                 out.println("OK");
             }
             case "QUIT" -> {
+                kicks.remove(name);
                 Bot bot = bots.remove(name);
                 if (bot != null) {
                     bot.quit();
@@ -161,6 +187,10 @@ public final class BotController {
     private void shutdown() {
         bots.values().forEach(Bot::quit);
         proxy.stop();
+    }
+
+    private static String base64(String text) {
+        return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
     }
 
     static String oneLine(Throwable t) {

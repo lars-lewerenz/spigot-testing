@@ -8,10 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.larslewerenz.spigottesting.EventRecorder;
-import io.github.larslewerenz.spigottesting.ServerTest;
-import java.util.ArrayList;
+import io.github.larslewerenz.spigottesting.EnabledOnServer;
+import io.github.larslewerenz.spigottesting.ServerType;
 import java.util.Arrays;
-import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
 import org.bukkit.World;
@@ -35,13 +34,16 @@ class GreeterConfigTest {
     private final GreeterPlugin plugin = JavaPlugin.getPlugin(GreeterPlugin.class);
 
     @Test
+    @EnabledOnServer(ServerType.SPIGOT)
     void rulesComeFromTheServerFiles() {
-        List<String> expected = new ArrayList<>(Arrays.asList("Be nice to each other.", "No griefing."));
-        if (ServerTest.serverType().equals("paper")) {
-            expected.add("Paper servers have one more rule: have fun.");
-        }
+        assertEquals(Arrays.asList("Be nice to each other.", "No griefing."), dispatchCommand("rules").messages());
+    }
 
-        assertEquals(expected, dispatchCommand("rules").messages());
+    @Test
+    @EnabledOnServer(ServerType.PAPER)
+    void paperServersGetOneMoreRule() {
+        assertEquals(Arrays.asList("Be nice to each other.", "No griefing.", "Paper servers have one more rule: have fun."),
+                dispatchCommand("rules").messages());
     }
 
     @Test

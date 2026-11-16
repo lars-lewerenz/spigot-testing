@@ -1,9 +1,11 @@
 package io.github.larslewerenz.spigottesting;
 
+import io.github.larslewerenz.spigottesting.internal.Cleanups;
 import io.github.larslewerenz.spigottesting.internal.MainThread;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
@@ -19,10 +21,10 @@ import org.bukkit.event.Listener;
 public final class EventRecorder<T extends Event> implements Listener, AutoCloseable {
 
     private static final long TIMEOUT_MILLIS = 10_000;
-    private static final List<EventRecorder<?>> OPEN = new CopyOnWriteArrayList<>();
 
     private final Class<T> type;
     private final List<T> events = new CopyOnWriteArrayList<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private EventRecorder(Class<T> type) {
         this.type = type;
@@ -41,7 +43,7 @@ public final class EventRecorder<T extends Event> implements Listener, AutoClose
                     MainThread.plugin(), false);
             return null;
         });
-        OPEN.add(recorder);
+        Cleanups.register(recorder);
         return recorder;
     }
 
@@ -76,21 +78,15 @@ public final class EventRecorder<T extends Event> implements Listener, AutoClose
         return awaitEvent(event -> true);
     }
 
-    /** Stops recording. Happens automatically after each test. */
+    /** Stops recording. Happens automatically at the end of the test. */
     @Override
     public void close() {
-        if (OPEN.remove(this)) {
+        if (closed.compareAndSet(false, true)) {
+            Cleanups.unregister(this);
             MainThread.call(() -> {
                 HandlerList.unregisterAll(this);
                 return null;
             });
-        }
-    }
-
-    /** Called after each test. */
-    public static void closeAll() {
-        for (EventRecorder<?> recorder : OPEN) {
-            recorder.close();
         }
     }
 }

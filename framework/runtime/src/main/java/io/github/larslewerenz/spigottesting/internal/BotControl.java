@@ -27,6 +27,18 @@ public final class BotControl {
         request("JOIN " + name);
     }
 
+    /** Tries to join; returns the server's reason if it refused, or null if the bot got in (and left again). */
+    public static String joinExpectingRejection(String name) {
+        String result = requestValue("REJECT " + name);
+        return result.startsWith("REJECTED ") ? decode(result.substring("REJECTED ".length())) : null;
+    }
+
+    /** Why the server disconnected the bot, or null if it hasn't. */
+    public static String kickReason(String name) {
+        String reason = requestValue("KICKED " + name);
+        return reason.isEmpty() ? null : decode(reason);
+    }
+
     public static void chat(String name, String text) {
         request("CHAT " + name + " " + Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8)));
     }
@@ -37,12 +49,8 @@ public final class BotControl {
 
     /** The title of the container open on the client, or null. */
     public static String openInventoryTitle(String name) {
-        try (Socket socket = connect()) {
-            String title = ok(send(socket, "INVENTORY " + name).readLine());
-            return title.isEmpty() ? null : new String(Base64.getDecoder().decode(title), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new IllegalStateException("Talking to the bot controller failed", e);
-        }
+        String title = requestValue("INVENTORY " + name);
+        return title.isEmpty() ? null : decode(title);
     }
 
     public static void click(String name, int slot, String type) {
@@ -59,7 +67,7 @@ public final class BotControl {
             int count = Integer.parseInt(ok(in.readLine()));
             List<String> messages = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                messages.add(new String(Base64.getDecoder().decode(in.readLine()), StandardCharsets.UTF_8));
+                messages.add(decode(in.readLine()));
             }
             return messages;
         } catch (IOException e) {
@@ -68,11 +76,20 @@ public final class BotControl {
     }
 
     private static void request(String line) {
+        requestValue(line);
+    }
+
+    /** Sends one request and returns what follows the "OK". */
+    private static String requestValue(String line) {
         try (Socket socket = connect()) {
-            ok(send(socket, line).readLine());
+            return ok(send(socket, line).readLine());
         } catch (IOException e) {
             throw new IllegalStateException("Talking to the bot controller failed", e);
         }
+    }
+
+    private static String decode(String base64) {
+        return new String(Base64.getDecoder().decode(base64), StandardCharsets.UTF_8);
     }
 
     private static BufferedReader send(Socket socket, String line) throws IOException {

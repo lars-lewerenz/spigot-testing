@@ -8,6 +8,7 @@ import io.github.larslewerenz.spigottesting.Bot;
 import io.github.larslewerenz.spigottesting.Bots;
 import io.github.larslewerenz.spigottesting.OffMainThread;
 import io.github.larslewerenz.spigottesting.ServerTest;
+import io.github.larslewerenz.spigottesting.ServerType;
 import java.util.Collections;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -20,7 +21,7 @@ class PaperGreeterTest {
     @Test
     void pluginIsEnabled() {
         assertTrue(Bukkit.getPluginManager().isPluginEnabled("PaperGreeter"));
-        assertEquals("paper", ServerTest.serverType());
+        assertEquals(ServerType.PAPER, ServerTest.serverType());
     }
 
     @Test

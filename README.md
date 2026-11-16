@@ -36,14 +36,14 @@ $ ./gradlew serverTest
 [Spigot 1.8.8]   PASSED GreeterMenuTest > clickingThePaperGreetsAndClosesTheMenu()
 [Paper 26.3]   PASSED GreeterPlayerTest > chatReachesOtherPlayers()
 …
-[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (14 s)
-[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (15 s)
-[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (16 s)
-[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (22 s)
-[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (22 s)
-[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (23 s)
-[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (21 s)
-[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 17 tests, 17 passed, 0 failed, 0 skipped, 0 aborted (26 s)
+[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (14 s)
+[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (15 s)
+[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (16 s)
+[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (22 s)
+[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (22 s)
+[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (23 s)
+[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (21 s)
+[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (26 s)
 
 BUILD SUCCESSFUL in 33s
 ```
@@ -60,12 +60,12 @@ BUILD SUCCESSFUL in 33s
 | 🔌 **Other plugins** | Vault, PlaceholderAPI, LuckPerms… installed next to yours from Maven, local files or download URLs. |
 | 🎯 **Just JUnit 5** | Familiar assertions and annotations; JUnit XML reports for your CI. |
 | 🧩 **Unit tests too** | Plain `src/test` tests on the build JVM, with the Spigot API on the classpath. |
-| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 17 tests in ~30 s. |
+| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 22 tests in ~30 s. |
 
 ### Supported servers
 
 Every major Minecraft version from 1.8.8 to 26.3, on **Spigot** and **Paper** — 36 servers, all
-running the example plugin's full suite (17 tests):
+running the example plugin's full suite (22 tests):
 
 | | 1.8.8 | 1.9.4 | 1.10.2 | 1.11.2 | 1.12.2 | 1.13.2 | 1.14.4 | 1.15.2 | 1.16.5 | 1.17.1 | 1.18.2 | 1.19.4 | 1.20.4 | 1.20.6 | 1.21.4 | 1.21.11 | 26.1.2 | 26.3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -195,7 +195,26 @@ Server tests are plain JUnit 5 classes. A few things to know:
 | `awaitTicks(n)` | lets the server tick `n` times (for `@OffMainThread` tests) |
 | `recordEvents(SomeEvent.class)` | records events after every plugin has handled them → `EventRecorder` |
 | `setConfig(plugin, "path", value)` | changes a value in the plugin's config for this test only → `ConfigChange` |
-| `serverType()` · `minecraftVersion()` | which server the tests run on (`"spigot"`/`"paper"`, e.g. `"1.8.8"`) |
+| `serverType()` · `minecraftVersion()` | which server the tests run on (`ServerType.SPIGOT`/`PAPER`, e.g. `"1.8.8"`) |
+| `isMinecraftAtLeast("1.13")` | whether the server runs that version or a newer one |
+
+### Only on some servers
+
+Some behaviour only exists on some servers. Tests (or whole classes) annotated like this run where
+they apply and are reported as **skipped** everywhere else:
+
+```java
+@Test
+@EnabledOnServer(ServerType.PAPER)                 // Paper only
+void paperServersGetOneMoreRule() { … }
+
+@Test
+@EnabledForMinecraftRange(min = "1.13")            // 1.13 and newer; also max = "1.12.2", or both
+void sinceTheFlatteningEveryColourIsItsOwnMaterial() {
+    assertNotNull(Material.matchMaterial("WHITE_WOOL"));
+}
+```
+
 
 <details>
 <summary><b>Example: commands, events and the scheduler</b></summary>
@@ -312,6 +331,26 @@ class GreeterPlayerTest {
 }
 ```
 
+### 🚪 Rejected logins and kicks
+
+```java
+@Test
+void bannedNamesAreTurnedAwayAtLogin() {
+    String reason = Bots.expectRejection("Herobrine");    // fails if Herobrine gets in
+
+    assertEquals(ChatColor.RED + "The name Herobrine is not allowed here.", reason);
+}
+
+@Test
+void playersWhoTalkAboutGriefingAreKicked() {
+    Bot alex = Bots.join("Alex");
+
+    alex.chat("let's grief bob's house");
+
+    assertEquals(ChatColor.RED + "No griefing, Alex!", alex.awaitKick());
+}
+```
+
 ### 🗃️ Inventory GUIs
 
 Bots see the inventories your plugin opens for them and click them with real click packets:
@@ -338,6 +377,8 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 | `click(slot)` · `click(slot, ClickType)` | `LEFT`, `RIGHT`, `SHIFT_LEFT`, `SHIFT_RIGHT` on a raw slot number, like `InventoryClickEvent#getRawSlot` |
 | `closeInventory()` | closes it, like pressing Escape |
 | `quit()` · `isOnline()` | disconnects and waits until the server has removed the player |
+| `awaitKick()` | waits until the server disconnects the bot and returns the reason it gave |
+| `Bots.expectRejection(name)` | joins a bot the server must turn away and returns the reason |
 
 > [!TIP]
 > Bots still online at the end of a test are disconnected automatically, and event recorders
@@ -394,6 +435,7 @@ spigotTesting {
     paperVersions = listOf("26.3")                     // Paper versions
     pluginUrls.add("https://…/OtherPlugin.jar")        // other plugins for the test servers
     pluginJar = tasks.shadowJar.flatMap { it.archiveFile } // default: the jar task's output
+    javaVersions.put("1.8.8", 17)                      // run a server on another Java (default: the oldest LTS it supports)
     jvmArgs = listOf("-Xmx2G")                         // default
     timeout = java.time.Duration.ofMinutes(10)         // per server run (default)
     acceptEula = true                                  // default: Gradle property spigotTesting.acceptEula

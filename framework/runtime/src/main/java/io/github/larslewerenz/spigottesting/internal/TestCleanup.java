@@ -1,8 +1,6 @@
 package io.github.larslewerenz.spigottesting.internal;
 
 import io.github.larslewerenz.spigottesting.Bots;
-import io.github.larslewerenz.spigottesting.ConfigChange;
-import io.github.larslewerenz.spigottesting.EventRecorder;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -14,9 +12,11 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 public final class TestCleanup implements AfterEachCallback {
 
     @Override
-    public void afterEach(ExtensionContext context) {
-        EventRecorder.closeAll();
-        Bots.quitAll();
-        ConfigChange.restoreAll();
+    public void afterEach(ExtensionContext context) throws Exception {
+        try {
+            Cleanups.closeAll();
+        } finally {
+            Bots.quitAll();
+        }
     }
 }

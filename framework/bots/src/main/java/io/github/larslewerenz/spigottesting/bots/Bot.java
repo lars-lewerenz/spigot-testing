@@ -54,6 +54,10 @@ final class Bot {
     private String containerTitle;
     /** The server's last state id; clicks must send it back. */
     private int stateId;
+    /** Set when the test disconnects the bot itself, so that is not taken for a kick. */
+    private volatile boolean quitting;
+    /** Why the server disconnected this bot (a kick), or null while it is online. */
+    private volatile String kickReason;
 
     private Bot(String name, ClientSession session) {
         this.name = name;
@@ -83,6 +87,9 @@ final class Bot {
                 return bot;
             } catch (ExecutionException e) {
                 String reason = BotController.oneLine(e.getCause());
+                if (e.getCause() instanceof Rejected rejected && !reason.contains(VIAPROXY_ERROR)) {
+                    throw rejected;
+                }
                 if (!reason.contains(VIAPROXY_ERROR) || attempt == JOIN_ATTEMPTS) {
                     throw new IllegalStateException(name + " could not join: " + reason, e.getCause());
                 }
@@ -159,7 +166,13 @@ final class Bot {
         return new ArrayList<>(messages);
     }
 
+    /** Why the server disconnected this bot, or null if it is online or the test disconnected it. */
+    String kickReason() {
+        return kickReason;
+    }
+
     void quit() {
+        quitting = true;
         if (session.isConnected()) {
             session.disconnect("Test finished");
         }
@@ -210,9 +223,15 @@ final class Bot {
         @Override
         public void disconnected(DisconnectedEvent event) {
             String reason = ChatText.legacy(event.getReason());
-            joined.completeExceptionally(event.getCause() != null
-                    ? new IllegalStateException(reason, event.getCause())
-                    : new IllegalStateException("disconnected: " + reason));
+            if (event.getCause() != null) {
+                joined.completeExceptionally(new IllegalStateException(reason, event.getCause()));
+            } else {
+                // The server closed the connection on purpose (a ban, the whitelist, a plugin).
+                joined.completeExceptionally(new Rejected(name, reason));
+                if (!quitting) {
+                    kickReason = reason;
+                }
+            }
             List<Runnable> listeners;
             synchronized (Bot.this) {
                 listeners = new ArrayList<>(disconnectListeners);
@@ -224,5 +243,22 @@ final class Bot {
     @Override
     public String toString() {
         return "Bot[" + name + "]";
+    }
+
+    /** The server refused the login and sent this reason. */
+    static final class Rejected extends IllegalStateException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final String reason;
+
+        Rejected(String name, String reason) {
+            super(name + " could not join: disconnected: " + reason);
+            this.reason = reason;
+        }
+
+        String reason() {
+            return reason;
+        }
     }
 }

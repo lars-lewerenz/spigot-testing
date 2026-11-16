@@ -1,8 +1,8 @@
 package io.github.larslewerenz.spigottesting;
 
+import io.github.larslewerenz.spigottesting.internal.Cleanups;
 import io.github.larslewerenz.spigottesting.internal.MainThread;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 
@@ -12,12 +12,11 @@ import org.bukkit.plugin.Plugin;
  */
 public final class ConfigChange implements AutoCloseable {
 
-    private static final List<ConfigChange> OPEN = new CopyOnWriteArrayList<>();
-
     private final Plugin plugin;
     private final String path;
     private final boolean wasSet;
     private final Object oldValue;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private ConfigChange(Plugin plugin, String path, boolean wasSet, Object oldValue) {
         this.plugin = plugin;
@@ -33,14 +32,15 @@ public final class ConfigChange implements AutoCloseable {
             config.set(path, value);
             return c;
         });
-        OPEN.add(change);
+        Cleanups.register(change);
         return change;
     }
 
     /** Puts the old value back (or removes the key, if it wasn't set). */
     @Override
     public void close() {
-        if (OPEN.remove(this)) {
+        if (closed.compareAndSet(false, true)) {
+            Cleanups.unregister(this);
             MainThread.call(() -> {
                 plugin.getConfig().set(path, wasSet ? oldValue : null);
                 return null;
@@ -48,10 +48,4 @@ public final class ConfigChange implements AutoCloseable {
         }
     }
 
-    /** Called after each test; restores the newest changes first. */
-    public static void restoreAll() {
-        for (int i = OPEN.size() - 1; i >= 0; i--) {
-            OPEN.get(i).close();
-        }
-    }
 }

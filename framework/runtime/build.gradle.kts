@@ -24,6 +24,11 @@ java {
     withSourcesJar()
 }
 
+tasks.javadoc {
+    // Only the API; the internal package may change in any release.
+    exclude("**/internal/**")
+}
+
 publishing {
     publications {
         create<MavenPublication>("maven") {

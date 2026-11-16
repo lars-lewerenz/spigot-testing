@@ -18,6 +18,25 @@ subprojects {
             options.compilerArgs.add("-Werror")
         }
 
+        tasks.withType<Javadoc>().configureEach {
+            // Broken links, bad HTML and wrong tags fail the build. Not every getter needs a
+            // comment or @return, so the "missing" checks are off.
+            (options as StandardJavadocDocletOptions).apply {
+                addBooleanOption("Xdoclint:all,-missing", true)
+                addBooleanOption("Werror", true)
+            }
+        }
+
+        // Unit tests of the framework's own pieces.
+        dependencies {
+            "testImplementation"(platform(rootProject.libs.junit.bom))
+            "testImplementation"("org.junit.jupiter:junit-jupiter")
+            "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+        }
+        tasks.withType<Test>().configureEach {
+            useJUnitPlatform()
+        }
+
         // Every published jar carries the license.
         tasks.named<Jar>("jar") {
             from(rootProject.file("../LICENSE")) { into("META-INF") }

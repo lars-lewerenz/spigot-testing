@@ -237,18 +237,14 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
         String name = type.displayName + " " + version;
         String dir = type.directoryPrefix + version;
         Provider<Directory> cache = extension.getCacheDirectory();
-        Provider<JavaLauncher> launcher = cache.flatMap(cacheDir -> {
-            int java = type == ServerType.PAPER
-                    ? PaperVersions.requiredJava(version, cacheDir.getAsFile())
-                    : SpigotVersions.requiredJava(version, cacheDir.getAsFile());
-            return getToolchains().launcherFor(spec -> {
-                spec.getLanguageVersion().set(JavaLanguageVersion.of(java));
-                if (java == 8 && APPLE_SILICON) {
-                    // Most vendors only ship Java 8 for x64 macOS, which would run under Rosetta.
-                    spec.getVendor().set(JvmVendorSpec.AZUL);
-                }
-            });
-        });
+        // BuildTools always builds with the Java the version needs; the server runs on the
+        // configured Java, if any.
+        Provider<Integer> requiredJava = cache.map(cacheDir -> type == ServerType.PAPER
+                ? PaperVersions.requiredJava(version, cacheDir.getAsFile())
+                : SpigotVersions.requiredJava(version, cacheDir.getAsFile()));
+        Provider<JavaLauncher> launcher = requiredJava.flatMap(this::launcherFor);
+        Provider<JavaLauncher> runLauncher = extension.getJavaVersions().getting(version).orElse(requiredJava)
+                .flatMap(this::launcherFor);
 
         Provider<RegularFile> serverJar;
         TaskProvider<? extends Task> serverJarTask;
@@ -298,7 +294,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getServerFileLayers().set(layers);
             task.getServerFiles().from(layers);
             task.getServerType().set(type.id);
-            task.getJavaLauncher().set(launcher);
+            task.getJavaLauncher().set(runLauncher);
             task.getBotControllerJar().set(botController.flatMap(ExtractBundledJar::getJar));
             task.getBotJavaLauncher().set(getToolchains().launcherFor(spec ->
                     spec.getLanguageVersion().set(JavaLanguageVersion.of(BOT_JAVA_VERSION))));
@@ -308,6 +304,16 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getRunTimeout().set(extension.getTimeout());
             task.getServerDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + dir + "/server"));
             task.getResultsDirectory().set(project.getLayout().getBuildDirectory().dir("spigot-testing/" + dir + "/results"));
+        });
+    }
+
+    private Provider<JavaLauncher> launcherFor(int java) {
+        return getToolchains().launcherFor(spec -> {
+            spec.getLanguageVersion().set(JavaLanguageVersion.of(java));
+            if (java == 8 && APPLE_SILICON) {
+                // Most vendors only ship Java 8 for x64 macOS, which would run under Rosetta.
+                spec.getVendor().set(JvmVendorSpec.AZUL);
+            }
         });
     }
 

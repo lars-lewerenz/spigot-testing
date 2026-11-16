@@ -30,14 +30,9 @@ gradlePlugin {
     }
 }
 
-// Unit tests and Gradle TestKit tests (java-gradle-plugin wires TestKit and the plugin under test).
-dependencies {
-    testImplementation(platform(libs.junit.bom))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
+// Unit tests and Gradle TestKit tests (JUnit is set up in ../build.gradle.kts; java-gradle-plugin
+// wires TestKit and the plugin under test).
 tasks.test {
-    useJUnitPlatform()
     // TestKit runs the tested Gradle versions on this JVM; Gradle 8.x can't run on newer Java.
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
 }

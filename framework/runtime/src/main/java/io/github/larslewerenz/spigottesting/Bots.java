@@ -44,6 +44,21 @@ public final class Bots {
         return bot;
     }
 
+    /**
+     * Connects a bot that the server is expected to turn away (a ban, the whitelist, a plugin
+     * disallowing the login, ...) and returns the reason the server sent, with {@code §} color
+     * codes. Fails if the bot gets in. Only callable from tests annotated with {@link OffMainThread}.
+     */
+    public static String expectRejection(String name) {
+        requireOffMainThread();
+        String reason = BotControl.joinExpectingRejection(name);
+        if (reason == null) {
+            awaitOffline(name);
+            throw new AssertionError(name + " was let in, but the server should have refused the login");
+        }
+        return reason;
+    }
+
     /** Disconnects every bot that is still online. Called automatically after each test. */
     public static void quitAll() {
         for (Bot bot : new ArrayList<>(ONLINE)) {
