@@ -13,6 +13,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # API key of the Gradle Plugin Portal account (https://plugins.gradle.org), as repository secrets.
+      GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+      GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -32,6 +36,13 @@ jobs:
         run: ./gradlew -p framework publishAllPublicationsToGitHubPackagesRepository -PreleaseVersion=${{ steps.version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to the Gradle Plugin Portal
+        if: env.GRADLE_PUBLISH_KEY != ''
+        run: ./gradlew -p framework :spigot-testing-gradle-plugin:publishPlugins -PreleaseVersion=${{ steps.version.outputs.version }}
+      - name: Plugin Portal not configured
+        if: env.GRADLE_PUBLISH_KEY == ''
+        run: echo "::warning::GRADLE_PUBLISH_KEY / GRADLE_PUBLISH_SECRET are not set; not published to the Gradle Plugin Portal"
 
       - name: Create GitHub release
         run: |

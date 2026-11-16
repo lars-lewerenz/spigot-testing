@@ -85,13 +85,18 @@ running the example plugin's full suite (17 tests):
 
 ## 🚀 Quick start
 
-**1.** Apply the plugin and pick your servers:
+**1.** Apply the plugin (from the [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lars-lewerenz.spigot-testing) — no credentials needed) and pick your servers:
 
 ```kotlin
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing")
+    id("io.github.lars-lewerenz.spigot-testing") version "0.3.0"
+}
+
+repositories {
+    mavenCentral()
+    maven("https://hub.spigotmc.org/nexus/content/groups/public/")
 }
 
 dependencies {
@@ -468,49 +473,30 @@ example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu 
 
 ## 📦 Installation
 
-Releases are published to **GitHub Packages** ([releases](https://github.com/lars-lewerenz/spigot-testing/releases)).
-GitHub Packages needs a token with `read:packages` even for reading — e.g. as `gpr.user` /
-`gpr.key` in `~/.gradle/gradle.properties`:
-
-```kotlin
-// settings.gradle.kts
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        maven("https://maven.pkg.github.com/lars-lewerenz/spigot-testing") {
-            credentials {
-                username = providers.gradleProperty("gpr.user").get()
-                password = providers.gradleProperty("gpr.key").get()
-            }
-        }
-    }
-}
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-}
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-        maven("https://hub.spigotmc.org/nexus/content/groups/public/")
-        maven("https://maven.pkg.github.com/lars-lewerenz/spigot-testing") {
-            credentials {
-                username = providers.gradleProperty("gpr.user").get()
-                password = providers.gradleProperty("gpr.key").get()
-            }
-        }
-    }
-}
-```
+spigot-testing is on the [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lars-lewerenz.spigot-testing):
+one line, no credentials, no extra repositories.
 
 ```kotlin
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.1.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.3.0"
+}
+repositories {
+    mavenCentral()                                                   // JUnit
+    maven("https://hub.spigotmc.org/nexus/content/groups/public/")   // the Spigot API
 }
 ```
 
-Or build it yourself: `./gradlew -p framework publishToMavenLocal` and use `mavenLocal()`.
+```kotlin
+// settings.gradle.kts — lets Gradle download the JDKs the servers need
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+```
+
+The test runtime and the bot client ship inside the plugin, so nothing else needs to be
+resolved. Every release is also attached to [GitHub Releases](https://github.com/lars-lewerenz/spigot-testing/releases).
 
 ## 🧭 Limitations & ideas
 

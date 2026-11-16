@@ -71,14 +71,15 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
 
         configureUnitTests(project, versions.getProperty("junitVersion"));
         SourceSet serverTest = createServerTestSourceSet(project);
-        project.getDependencies().add(serverTest.getImplementationConfigurationName(),
-                "io.github.lars-lewerenz:spigot-testing-runtime:" + versions.getProperty("version"));
+        addRuntime(project, serverTest, versions.getProperty("junitVersion"));
 
         FileCollection otherPlugins = configureOtherPlugins(project, extension, serverTest);
         TaskProvider<Jar> harnessJar = registerHarnessJar(project, extension, serverTest, otherPlugins);
-        TaskProvider<ExtractBotController> botController = project.getTasks().register(
-                "extractBotController", ExtractBotController.class, task ->
-                        task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/spigot-testing-bots.jar")));
+        TaskProvider<ExtractBundledJar> botController = project.getTasks().register(
+                "extractBotController", ExtractBundledJar.class, task -> {
+                    task.getResource().set(ExtractBundledJar.BOTS);
+                    task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/" + ExtractBundledJar.BOTS));
+                });
         TaskProvider<DownloadViaProxy> viaProxy = project.getTasks().register("downloadViaProxy", DownloadViaProxy.class, task -> {
             task.getUrl().set("https://github.com/ViaVersion/ViaProxy/releases/download/v"
                     + VIAPROXY_VERSION + "/ViaProxy-" + VIAPROXY_VERSION + ".jar");
@@ -110,6 +111,25 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
                 allServerTests.configure(t -> t.dependsOn(task));
             }
         });
+    }
+
+    /**
+     * The test runtime (ServerTest, Bots, the JUnit runner inside the server) ships inside this
+     * plugin, so it needs no repository of its own; its JUnit dependencies come from Maven Central.
+     */
+    private static void addRuntime(Project project, SourceSet serverTest, String junitVersion) {
+        TaskProvider<ExtractBundledJar> runtime = project.getTasks().register("extractSpigotTestingRuntime", ExtractBundledJar.class, task -> {
+            task.getResource().set(ExtractBundledJar.RUNTIME);
+            task.getJar().set(project.getLayout().getBuildDirectory().file("spigot-testing/" + ExtractBundledJar.RUNTIME));
+        });
+        var dependencies = project.getDependencies();
+        String implementation = serverTest.getImplementationConfigurationName();
+        String runtimeOnly = serverTest.getRuntimeOnlyConfigurationName();
+        dependencies.add(implementation, project.files(runtime.flatMap(ExtractBundledJar::getJar)));
+        dependencies.add(implementation, dependencies.platform("org.junit:junit-bom:" + junitVersion));
+        dependencies.add(implementation, "org.junit.jupiter:junit-jupiter");
+        dependencies.add(runtimeOnly, "org.junit.platform:junit-platform-launcher");
+        dependencies.add(runtimeOnly, "org.junit.platform:junit-platform-reporting");
     }
 
     /**
@@ -205,7 +225,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
     }
 
     private TaskProvider<ServerTestTask> registerVersion(Project project, SpigotTestingExtension extension,
-            TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBotController> botController,
+            TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBundledJar> botController,
             TaskProvider<DownloadViaProxy> viaProxy, TaskProvider<CheckEula> checkEula, ServerType type, String version) {
         String id = type.taskPrefix + version.replaceAll("[^A-Za-z0-9]", "_");
         String name = type.displayName + " " + version;
@@ -266,7 +286,7 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             task.getServerFiles().from(layers);
             task.getServerType().set(type.id);
             task.getJavaLauncher().set(launcher);
-            task.getBotControllerJar().set(botController.flatMap(ExtractBotController::getJar));
+            task.getBotControllerJar().set(botController.flatMap(ExtractBundledJar::getJar));
             task.getBotJavaLauncher().set(getToolchains().launcherFor(spec ->
                     spec.getLanguageVersion().set(JavaLanguageVersion.of(BOT_JAVA_VERSION))));
             task.getViaProxyJar().set(viaProxy.flatMap(DownloadViaProxy::getJar));

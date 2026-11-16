@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0]
+
+### Installation without credentials
+
+- Published to the **Gradle Plugin Portal**: `plugins { id("io.github.lars-lewerenz.spigot-testing") version "0.3.0" }`
+  works without tokens or extra repositories.
+- The test runtime now ships inside the Gradle plugin (like the bot client); its JUnit
+  dependencies come from Maven Central. GitHub Packages is no longer needed.
+
+### Fixes
+
+- A rare race in ViaProxy's login handling could fail a bot's join ("An unhandled error occurred
+  in your connection"); such joins are now retried. Rejections by the server are not.
+
+Tested on all 36 servers (18 versions, Spigot and Paper), and from a fresh project that has no
+GitHub repository configured.
+
 ## [0.2.0]
 
 ### Server files & configs

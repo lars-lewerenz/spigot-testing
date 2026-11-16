@@ -40,6 +40,8 @@ final class Bot {
 
     private static final long JOIN_TIMEOUT_SECONDS = 10;
     private static final int JOIN_ATTEMPTS = 3;
+    /** How ViaProxy kicks a client when it fails internally (not when the server rejects it). */
+    private static final String VIAPROXY_ERROR = "An unhandled error occurred in your connection";
 
     private final String name;
     private final ClientSession session;
@@ -60,9 +62,12 @@ final class Bot {
 
     /**
      * Connects and returns once the player has spawned (its spawn position is confirmed); some
-     * versions ignore commands from a player before that. A join that stalls is
-     * retried: through ViaProxy, a quick reconnect with the same name occasionally hangs in the
-     * configuration phase although the server has already logged the player in.
+     * versions ignore commands from a player before that.
+     *
+     * <p>Two ViaProxy hiccups are retried: a quick reconnect with the same name occasionally
+     * hangs in the configuration phase, and a rare race in ViaProxy's login handling ends the
+     * connection with its "unhandled error" message. Rejections by the server itself (bans,
+     * whitelist, a plugin cancelling the login) are not retried; they fail the join right away.
      */
     static Bot connect(String name, String host, int port) throws Exception {
         for (int attempt = 1; ; attempt++) {
@@ -77,7 +82,11 @@ final class Bot {
                 bot.joined.get(JOIN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 return bot;
             } catch (ExecutionException e) {
-                throw new IllegalStateException(name + " could not join: " + BotController.oneLine(e.getCause()), e.getCause());
+                String reason = BotController.oneLine(e.getCause());
+                if (!reason.contains(VIAPROXY_ERROR) || attempt == JOIN_ATTEMPTS) {
+                    throw new IllegalStateException(name + " could not join: " + reason, e.getCause());
+                }
+                System.out.println(name + " hit a ViaProxy error while joining, retrying: " + reason);
             } catch (TimeoutException e) {
                 session.disconnect("Join timed out");
                 if (attempt == JOIN_ATTEMPTS) {

@@ -1,6 +1,8 @@
 plugins {
     `java-gradle-plugin`
     `maven-publish`
+    // Publishes to the Gradle Plugin Portal (see .github/workflows/release.yml).
+    id("com.gradle.plugin-publish") version "2.2.1"
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -8,12 +10,17 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 gradlePlugin {
+    website = "https://github.com/lars-lewerenz/spigot-testing"
+    vcsUrl = "https://github.com/lars-lewerenz/spigot-testing"
     plugins {
         create("spigotTesting") {
             id = "io.github.lars-lewerenz.spigot-testing"
             implementationClass = "io.github.larslewerenz.spigottesting.gradle.SpigotTestingPlugin"
-            displayName = "Spigot Testing"
-            description = "Unit and real-server integration tests for Spigot plugins across Minecraft versions"
+            displayName = "spigot-testing"
+            description = "Real-server tests for Spigot and Paper plugins, from 1.8.8 to 26.x, with JUnit 5: " +
+                "commands, events, fake players over the real network protocol, inventory GUIs and other plugins, " +
+                "on every Minecraft version you support."
+            tags = listOf("minecraft", "spigot", "paper", "bukkit", "testing", "integration-testing", "junit")
         }
     }
 }
@@ -28,13 +35,21 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// The bot controller (MCProtocolLib + dependencies) as one jar, shipped inside this plugin.
-val botsJar = configurations.dependencyScope("botsJar")
+// Jars shipped inside this plugin, so projects need no repository besides the Plugin Portal and
+// Maven Central: the test runtime (added to the server tests) and the bot controller
+// (MCProtocolLib + dependencies, started next to the test servers).
+val bundledRuntime = configurations.dependencyScope("bundledRuntime")
+val bundledBots = configurations.dependencyScope("bundledBots")
+val runtimeJarFiles = configurations.resolvable("runtimeJarFiles") {
+    extendsFrom(bundledRuntime.get())
+    isTransitive = false // its JUnit dependencies are added from Maven Central instead
+}
 val botsJarFiles = configurations.resolvable("botsJarFiles") {
-    extendsFrom(botsJar.get())
+    extendsFrom(bundledBots.get())
 }
 dependencies {
-    botsJar(project(":spigot-testing-bots", configuration = "botsJar"))
+    bundledRuntime(project(":spigot-testing-runtime", configuration = "runtimeElements"))
+    bundledBots(project(":spigot-testing-bots", configuration = "botsJar"))
 }
 
 tasks.processResources {
@@ -42,6 +57,10 @@ tasks.processResources {
     inputs.properties(props)
     filesMatching("**/spigot-testing.properties") {
         expand(props)
+    }
+    from(runtimeJarFiles) {
+        into("io/github/larslewerenz/spigottesting/gradle")
+        rename { "spigot-testing-runtime.jar" }
     }
     from(botsJarFiles) {
         into("io/github/larslewerenz/spigottesting/gradle")
