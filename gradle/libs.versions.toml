@@ -12,6 +12,7 @@ slf4j = "2.0.17"
 spigot-api = "1.8.8-R0.1-SNAPSHOT"
 paper-api = "1.21.11-R0.1-SNAPSHOT"
 placeholderapi = "2.12.3"
+errorprone = "2.52.0"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -24,6 +25,8 @@ viaproxy = { module = "net.raphimc:ViaProxy", version.ref = "viaproxy" }
 spigot-api = { module = "org.spigotmc:spigot-api", version.ref = "spigot-api" }
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper-api" }
 placeholderapi = { module = "me.clip:placeholderapi", version.ref = "placeholderapi" }
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 
 [plugins]
 plugin-publish = { id = "com.gradle.plugin-publish", version = "2.2.1" }
+errorprone = { id = "net.ltgt.errorprone", version = "5.2.0" }

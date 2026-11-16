@@ -36,6 +36,8 @@ jobs:
       JDKS: -Porg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
@@ -79,7 +81,10 @@ jobs:
           key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
       - name: Build Spigot ${{ matrix.version }}
         if: matrix.server == 'Spigot' && (inputs.fresh_spigot || steps.spigot-cache.outputs.cache-hit != 'true')
-        run: ./gradlew :${{ env.PROJECT }}:${{ steps.names.outputs.build }} ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
+        run: ./gradlew ":$PROJECT:$BUILD_TASK" $VERSIONS $JDKS
+        env:
+          BUILD_TASK: ${{ steps.names.outputs.build }}
+          VERSIONS: ${{ steps.names.outputs.versions }}
       - name: Save Spigot ${{ matrix.version }}
         if: matrix.server == 'Spigot' && !inputs.fresh_spigot && steps.spigot-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -90,9 +95,10 @@ jobs:
           key: spigot-${{ matrix.version }}${{ runner.os == 'Windows' && '-windows' || '' }}-v1
 
       - name: Run server tests
-        run: >-
-          ./gradlew :${{ env.PROJECT }}:${{ steps.names.outputs.task }} -PspigotTesting.acceptEula=true
-          ${{ steps.names.outputs.versions }} ${{ env.JDKS }}
+        run: ./gradlew ":$PROJECT:$TEST_TASK" -PspigotTesting.acceptEula=true $VERSIONS $JDKS
+        env:
+          TEST_TASK: ${{ steps.names.outputs.task }}
+          VERSIONS: ${{ steps.names.outputs.versions }}
       - name: Upload server logs and reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -1,6 +1,7 @@
 package io.github.larslewerenz.spigottesting.bots;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -15,6 +16,8 @@ import java.util.List;
 final class ViaProxyProcess {
 
     private static final long START_TIMEOUT_MILLIS = 60_000;
+    /** ViaProxy binds to 127.0.0.1 (see --bind-address), so connect to exactly that, not to "localhost". */
+    private static final InetAddress LOOPBACK = ipv4Loopback();
 
     private final int port;
     private final int serverPort;
@@ -63,10 +66,18 @@ final class ViaProxyProcess {
 
     private boolean isListening() {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", port), 200);
+            socket.connect(new InetSocketAddress(LOOPBACK, port), 200);
             return true;
         } catch (IOException e) {
             return false;
+        }
+    }
+
+    private static InetAddress ipv4Loopback() {
+        try {
+            return InetAddress.getByAddress(new byte[] {127, 0, 0, 1});
+        } catch (java.net.UnknownHostException e) {
+            throw new IllegalStateException(e); // can't happen for a 4-byte address
         }
     }
 

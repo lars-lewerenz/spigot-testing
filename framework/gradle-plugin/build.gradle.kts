@@ -1,3 +1,5 @@
+import net.ltgt.gradle.errorprone.errorprone
+
 plugins {
     `java-gradle-plugin`
     `maven-publish`
@@ -7,6 +9,9 @@ plugins {
 
 tasks.withType<JavaCompile>().configureEach {
     options.release = 17
+    // Gradle injects its services into abstract @Inject getters (its documented pattern); Error
+    // Prone's javax.inject check assumes a plain DI container and flags every one of them.
+    options.errorprone.disable("JavaxInjectOnAbstractMethod")
 }
 
 gradlePlugin {

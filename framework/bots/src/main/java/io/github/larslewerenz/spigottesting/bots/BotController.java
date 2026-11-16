@@ -131,7 +131,7 @@ public final class BotController {
                 out.println(title == null ? "OK" : "OK " + Base64.getEncoder().encodeToString(title.getBytes(StandardCharsets.UTF_8)));
             }
             case "CLICK" -> {
-                String[] args = request[2].split(" ");
+                String[] args = request[2].split(" ", 2);
                 bot(name).click(Integer.parseInt(args[0]), args[1]);
                 out.println("OK");
             }

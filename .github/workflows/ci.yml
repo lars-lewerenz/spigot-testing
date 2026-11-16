@@ -27,6 +27,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
@@ -45,6 +47,21 @@ jobs:
             framework/*/build/reports/tests/
             example-plugin/build/reports/tests/
 
+  lint-workflows:
+    name: Lint workflows (zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Security linter for GitHub Actions; the Java code is linted by Error Prone during the build.
+      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
+        with:
+          version: 1.32.0
+          advanced-security: false # findings fail this job instead of going to code scanning
+          annotations: true
+
   failure-reporting:
     name: Failure reporting
     needs: build
@@ -54,6 +71,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
@@ -80,7 +99,7 @@ jobs:
     # (https://aka.ms/MinecraftEULA). Server tests run only once the repository
     # variable ACCEPT_MINECRAFT_EULA is set to "true".
     if: vars.ACCEPT_MINECRAFT_EULA == 'true'
-    uses: ./.github/workflows/server-tests.yml
+    uses: $/.github/workflows/server-tests.yml
     with:
       # Core servers: the oldest, one per Java generation and the newest, and two on Windows.
       # compatibility.yml covers every major version.

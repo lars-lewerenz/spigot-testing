@@ -1,9 +1,23 @@
+plugins {
+    // Lints all framework code during compilation (https://errorprone.info).
+    alias(libs.plugins.errorprone) apply false
+}
+
 subprojects {
     group = "io.github.lars-lewerenz"
     // Releases pass -PreleaseVersion=<version> (see .github/workflows/release.yml).
     version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0-SNAPSHOT")
 
     plugins.withId("java") {
+        apply(plugin = "net.ltgt.errorprone")
+        dependencies {
+            "errorprone"(rootProject.libs.errorprone.core)
+        }
+        tasks.withType<JavaCompile>().configureEach {
+            // Lint findings fail the build instead of scrolling by.
+            options.compilerArgs.add("-Werror")
+        }
+
         // Every published jar carries the license.
         tasks.named<Jar>("jar") {
             from(rootProject.file("../LICENSE")) { into("META-INF") }

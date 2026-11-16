@@ -10,6 +10,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Don't propose versions published in the last week: compromised releases are usually
+    # found and pulled within days.
+    cooldown:
+      default-days: 7
     groups:
       bots:
         patterns:
@@ -27,6 +31,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # Don't propose versions published in the last week: compromised releases are usually
+    # found and pulled within days.
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns:

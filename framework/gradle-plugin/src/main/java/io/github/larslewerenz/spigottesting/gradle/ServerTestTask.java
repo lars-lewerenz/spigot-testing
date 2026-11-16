@@ -354,7 +354,6 @@ public abstract class ServerTestTask extends DefaultTask {
             return port;
         }
 
-        /** Writes the server output to the log file and shows the harness' test lines in the build output. */
         /** What the server output has shown so far. */
         static final class ServerWatch {
             /** How long the harness gets after the server is up to announce its test run. */
@@ -378,6 +377,7 @@ public abstract class ServerTestTask extends DefaultTask {
             }
         }
 
+        /** Writes the server output to the log file and shows the harness' test lines in the build output. */
         private static void pumpOutput(String version, InputStream output, File log, ServerWatch watch) {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(output, StandardCharsets.UTF_8));
                     BufferedWriter writer = Files.newBufferedWriter(log.toPath(), StandardCharsets.UTF_8)) {

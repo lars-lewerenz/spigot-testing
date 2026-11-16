@@ -446,6 +446,9 @@ gh attestation verify spigot-testing-gradle-plugin-0.4.1.jar --repo lars-leweren
 - **Weekly compatibility run** ([`compatibility.yml`](.github/workflows/compatibility.yml)): all 36
   servers every Monday, with Spigot built fresh and Paper's latest build, so a new server build
   that breaks something shows up within a week.
+- **Linters**: [Error Prone](https://errorprone.info) checks all framework code while it compiles
+  (any finding fails the build), and [zizmor](https://docs.zizmor.sh) checks the GitHub Actions
+  workflows for security problems.
 - **Dependabot** keeps [`gradle/libs.versions.toml`](gradle/libs.versions.toml) and the GitHub
   Actions (pinned to commit SHAs) up to date. New Minecraft versions usually need the bot client
   (MCProtocolLib, ViaProxy) updated; those come as their own pull request.

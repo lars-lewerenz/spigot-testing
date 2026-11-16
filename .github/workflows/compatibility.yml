@@ -21,7 +21,7 @@ jobs:
   server-tests:
     name: Server tests
     if: vars.ACCEPT_MINECRAFT_EULA == 'true'
-    uses: ./.github/workflows/server-tests.yml
+    uses: $/.github/workflows/server-tests.yml
     with:
       # Scheduled runs always build fresh; manual runs ask.
       fresh_spigot: ${{ github.event_name == 'schedule' || inputs.fresh_spigot }}

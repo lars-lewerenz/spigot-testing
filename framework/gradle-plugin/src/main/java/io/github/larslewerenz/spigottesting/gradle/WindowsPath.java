@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * The PATH BuildTools gets on Windows. BuildTools checks whether "sh" can be started: if so, it
@@ -23,7 +24,7 @@ final class WindowsPath {
             return "";
         }
         List<String> kept = new ArrayList<>();
-        for (String entry : path.split(File.pathSeparator)) {
+        for (String entry : path.split(Pattern.quote(File.pathSeparator), -1)) {
             if (entry.isBlank() || hasShell(entry)) {
                 continue;
             }

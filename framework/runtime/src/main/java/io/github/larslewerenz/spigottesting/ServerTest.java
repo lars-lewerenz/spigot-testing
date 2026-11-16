@@ -143,6 +143,8 @@ public final class ServerTest {
      * proxy so it implements whatever methods {@link ConsoleCommandSender} has in the running
      * server version.
      */
+    // A proxy equals only itself (with hashCode = identityHashCode), like any object without equals().
+    @SuppressWarnings("ReferenceEquality")
     private static ConsoleCommandSender recordingConsole(List<String> messages) {
         ConsoleCommandSender console = Bukkit.getConsoleSender();
         InvocationHandler handler = (proxy, method, args) -> {
