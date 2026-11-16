@@ -92,7 +92,7 @@ running the example plugin's full suite (22 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.4.1"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.5.0"
 }
 
 repositories {
@@ -373,6 +373,7 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 | `player()` | the server-side Bukkit `Player` (use it inside `ServerTest.sync(...)`) |
 | `chat(text)` | sends chat — or a command, if it starts with `/` |
 | `messages()` · `awaitMessage(text)` | what the client received, with `§` color codes |
+| `view()` · `awaitView(v -> …)` | what the client shows besides chat → `ClientView` (see below) |
 | `awaitInventory(title)` · `openInventoryTitle()` | the inventory open on the client |
 | `click(slot)` · `click(slot, ClickType)` | `LEFT`, `RIGHT`, `SHIFT_LEFT`, `SHIFT_RIGHT` on a raw slot number, like `InventoryClickEvent#getRawSlot` |
 | `closeInventory()` | closes it, like pressing Escape |
@@ -383,6 +384,30 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 > [!TIP]
 > Bots still online at the end of a test are disconnected automatically, and event recorders
 > stop — every test starts from a clean slate.
+
+### 📺 Titles, boss bars, sidebars and the tab list
+
+`bot.view()` is what the client shows besides chat, tracked from the packets it receives — on
+every version, whatever API your plugin uses to send it (Bukkit, Adventure, packets):
+
+| `ClientView.…` | |
+|---|---|
+| `title()` · `subtitle()` · `actionBar()` | the last ones the server sent |
+| `bossBars()` | each with `title()` and `progress()` (0–1) |
+| `sidebarTitle()` · `sidebar()` · `sidebarScore(line)` | the sidebar scoreboard, top to bottom, as the client renders it (team prefixes and suffixes included) |
+| `tabHeader()` · `tabFooter()` · `tabList()` | the tab list, names as shown |
+
+```java
+@Test
+void theSidebarCountsGreetings() {
+    Bot alex = Bots.join("Alex");
+
+    alex.chat("/greet Steve");
+
+    ClientView view = alex.awaitView(v -> v.sidebar().contains("Greetings: 1"));
+    assertEquals(ChatColor.GOLD + "Greeter", view.sidebarTitle());
+}
+```
 
 <details>
 <summary><b>How bots reach every version</b></summary>
@@ -580,15 +605,16 @@ resolved. Every release is also attached to [GitHub Releases](https://github.com
 
 ## 🧭 Limitations & ideas
 
-- **Bots** join, chat, run commands, click inventory GUIs and quit. They don't yet move or
-  interact with blocks and entities from the client side — do that through `bot.player()`.
+- **Bots** join, chat, run commands, click inventory GUIs, see titles, boss bars, sidebars and
+  the tab list, and quit. They don't yet move or interact with blocks and entities from the
+  client side — do that through `bot.player()`.
 - **Offline mode:** bots join with unsigned chat on servers running `online-mode=false`.
 - **Same plugins everywhere:** other plugins are installed on every server, so pick versions that
   cover your whole range.
 - **Latest builds:** Paper jars (and BuildTools' Spigot) are the latest build of a version at the
   time they're first cached. Delete `~/.gradle/caches/spigot-testing/servers` to refresh.
-- **Ideas:** client-side movement and block interaction, what the client sees beyond chat (titles,
-  scoreboards, boss bars), restarting the server within a test run to check persistence.
+- **Ideas:** client-side movement and block interaction, restarting the server within a test run
+  to check persistence.
 
 ## 📄 License
 

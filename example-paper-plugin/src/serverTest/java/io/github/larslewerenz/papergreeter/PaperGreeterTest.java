@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.larslewerenz.spigottesting.Bot;
 import io.github.larslewerenz.spigottesting.Bots;
+import io.github.larslewerenz.spigottesting.ClientView;
 import io.github.larslewerenz.spigottesting.OffMainThread;
 import io.github.larslewerenz.spigottesting.ServerTest;
 import io.github.larslewerenz.spigottesting.ServerType;
@@ -40,5 +41,19 @@ class PaperGreeterTest {
 
         assertEquals(ChatColor.GOLD + "Welcome to Paper, Alex!", alex.awaitMessage("Welcome"));
         assertEquals(before + 1, (int) ServerTest.sync(plugin::joins));
+    }
+
+    @Test
+    @OffMainThread
+    void joiningPlayersSeeTheActionBarBossBarAndTabList() {
+        Bot alex = Bots.join("Alex");
+
+        ClientView view = alex.awaitView(v -> v.actionBar() != null && !v.bossBars().isEmpty() && v.tabHeader() != null);
+
+        assertTrue(view.actionBar().startsWith(ChatColor.GREEN + "You are player #"));
+        assertEquals(ChatColor.LIGHT_PURPLE + "Paper week", view.bossBars().get(0).title());
+        assertEquals(0.5f, view.bossBars().get(0).progress());
+        assertEquals(ChatColor.AQUA + "PaperGreeter", view.tabHeader());
+        assertEquals("Have fun!", view.tabFooter());
     }
 }

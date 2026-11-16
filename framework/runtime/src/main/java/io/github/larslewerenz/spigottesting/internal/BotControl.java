@@ -62,14 +62,28 @@ public final class BotControl {
     }
 
     public static List<String> messages(String name) {
+        List<String> messages = new ArrayList<>();
+        for (String line : requestLines("MESSAGES " + name)) {
+            messages.add(decode(line));
+        }
+        return messages;
+    }
+
+    /** The client view as the controller describes it: lines of {@code key [number] base64(text)}. */
+    public static List<String> view(String name) {
+        return requestLines("VIEW " + name);
+    }
+
+    /** Sends a request answered with "OK n" and n more lines, and returns those lines. */
+    private static List<String> requestLines(String line) {
         try (Socket socket = connect()) {
-            BufferedReader in = send(socket, "MESSAGES " + name);
+            BufferedReader in = send(socket, line);
             int count = Integer.parseInt(ok(in.readLine()));
-            List<String> messages = new ArrayList<>(count);
+            List<String> lines = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                messages.add(decode(in.readLine()));
+                lines.add(in.readLine());
             }
-            return messages;
+            return lines;
         } catch (IOException e) {
             throw new IllegalStateException("Talking to the bot controller failed", e);
         }

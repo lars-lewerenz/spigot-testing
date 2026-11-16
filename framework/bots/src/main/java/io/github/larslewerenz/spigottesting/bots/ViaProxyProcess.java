@@ -3,6 +3,7 @@ package io.github.larslewerenz.spigottesting.bots;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,7 +20,7 @@ final class ViaProxyProcess {
     /** ViaProxy binds to 127.0.0.1 (see --bind-address), so connect to exactly that, not to "localhost". */
     private static final InetAddress LOOPBACK = ipv4Loopback();
 
-    private final int port;
+    private int port;
     private final int serverPort;
     private final Path jar;
     private final Path workDir;
@@ -32,13 +33,20 @@ final class ViaProxyProcess {
         this.workDir = workDir;
     }
 
-    int port() {
+    synchronized int port() {
         return port;
     }
 
     synchronized void ensureStarted() throws IOException, InterruptedException {
         if (process != null && process.isAlive()) {
             return;
+        }
+        if (isListening()) {
+            // Someone else took the port since it was picked (it was free then). Bots must not
+            // end up talking to that instead of ViaProxy, so move to another one.
+            try (ServerSocket socket = new ServerSocket(0, 50, LOOPBACK)) {
+                port = socket.getLocalPort();
+            }
         }
         Path dir = Files.createDirectories(workDir.resolve("viaproxy"));
         String java = ProcessHandle.current().info().command().orElse("java");

@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### New
+
+- **What players see besides chat:** `bot.view()` and `bot.awaitView(v -> …)` return a
+  `ClientView` with the title and subtitle, the action bar, boss bars, the sidebar scoreboard (as
+  the client renders it, team prefixes included) and the tab list with its header and footer.
+  Works on every version, whichever API the plugin uses.
+
+### Fixes
+
+- With many servers in parallel, a bot could join the wrong server: the port picked for one run's
+  ViaProxy could be handed to another run's server before ViaProxy started. Ports now stay
+  reserved for the whole run, and ViaProxy moves to another port if its own was taken.
+
 ## [0.5.0]
 
 ### New

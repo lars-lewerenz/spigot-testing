@@ -19,6 +19,8 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 final class ChatText {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
+    private static final Pattern REDUNDANT_CODE = Pattern.compile("§[0-9a-fk-or](?=§[0-9a-fr])", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TRAILING_CODES = Pattern.compile("(§[0-9a-fk-or])+$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ARGUMENT = Pattern.compile("%(?:(\\d+)\\$)?s");
 
     /** English texts of the vanilla translation keys that reach players in chat. */
@@ -41,6 +43,15 @@ final class ChatText {
 
     static String legacy(Component component) {
         return LEGACY.serialize(render(component));
+    }
+
+    /**
+     * Drops color codes that have no effect: ones directly followed by a color code or reset
+     * (which override them) and ones at the end. Scoreboards are full of them, since plugins use
+     * color codes to make otherwise equal lines unique.
+     */
+    static String tidy(String legacy) {
+        return TRAILING_CODES.matcher(REDUNDANT_CODE.matcher(legacy).replaceAll("")).replaceAll("");
     }
 
     static Component render(Component component) {

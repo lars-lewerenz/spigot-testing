@@ -1,5 +1,6 @@
 package io.github.larslewerenz.greeter;
 
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -11,15 +12,18 @@ import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class GreeterPlugin extends JavaPlugin implements Listener {
 
     private int greetings;
+    private Sidebar sidebar;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        sidebar = new Sidebar(getServer().getScoreboardManager().getNewScoreboard());
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(new GreeterMenu(this), this);
         getServer().getScheduler().runTaskTimer(this, this::lockDay, 20L, 20L);
@@ -53,6 +57,11 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     void greet(CommandSender sender, String name) {
         sender.sendMessage(Greetings.format(getConfig().getString("greeting"), name));
         greetings++;
+        updateSidebar();
+    }
+
+    private void updateSidebar() {
+        sidebar.update(getServer().getOnlinePlayers().size(), greetings);
     }
 
     @EventHandler
@@ -85,6 +94,17 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         player.sendMessage(Greetings.format(getConfig().getString("welcome"), player.getName()));
+        player.sendTitle(Greetings.format(getConfig().getString("welcome-title"), player.getName()),
+                Greetings.format(getConfig().getString("welcome-subtitle"), player.getName()));
+        player.setPlayerListName(ChatColor.YELLOW + player.getName());
+        sidebar.show(player);
+        updateSidebar();
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        // The player still counts as online during the event.
+        getServer().getScheduler().runTask(this, this::updateSidebar);
     }
 
     @EventHandler

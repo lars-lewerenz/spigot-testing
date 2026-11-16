@@ -1,7 +1,9 @@
 # Message for /greet <name>. '&' starts a color code, %name% is replaced by the name.
 greeting: '&aHello, %name%!'
-# Sent to every player who joins.
+# Sent to every player who joins, in the chat and as a title.
 welcome: '&eWelcome, %name%!'
+welcome-title: '&6Welcome!'
+welcome-subtitle: '&eHave fun, %name%'
 # Cancel every creeper spawn.
 block-creepers: true
 # Skip the night: set the time back to morning whenever it gets dark.

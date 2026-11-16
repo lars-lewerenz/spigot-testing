@@ -46,6 +46,7 @@ final class Bot {
     private final String name;
     private final ClientSession session;
     private final List<String> messages = new ArrayList<>();
+    private final ClientView view = new ClientView();
     private final CompletableFuture<Void> joined = new CompletableFuture<>();
     private final List<Runnable> disconnectListeners = new ArrayList<>();
     private boolean loaded;
@@ -162,6 +163,11 @@ final class Bot {
         containerId = -1;
     }
 
+    /** Titles, action bar, boss bars, sidebar and tab list, as described by {@link ClientView#describe()}. */
+    List<String> view() {
+        return view.describe();
+    }
+
     synchronized List<String> messages() {
         return new ArrayList<>(messages);
     }
@@ -190,6 +196,9 @@ final class Bot {
 
         @Override
         public void packetReceived(Session session, Packet packet) {
+            if (view.handle(packet)) {
+                return;
+            }
             if (packet instanceof ClientboundPlayerPositionPacket position) {
                 // Confirm the server-side teleports, like a real client.
                 session.send(new ServerboundAcceptTeleportationPacket(position.getId(),

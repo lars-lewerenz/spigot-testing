@@ -78,6 +78,31 @@ public final class Bot {
                 + MESSAGE_TIMEOUT_MILLIS / 1000 + " s. Received: " + messages);
     }
 
+    /** What the client shows right now besides chat: title, action bar, boss bars, sidebar, tab list. */
+    public ClientView view() {
+        Bots.requireOffMainThread();
+        return ClientView.parse(BotControl.view(name));
+    }
+
+    /**
+     * Waits up to 10 seconds until what the client shows matches {@code condition} and returns that
+     * view, e.g. {@code awaitView(v -> v.sidebar().contains("Kills: 1"))}.
+     */
+    public ClientView awaitView(Predicate<ClientView> condition) {
+        Bots.requireOffMainThread();
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        ClientView view;
+        do {
+            view = view();
+            if (condition.test(view)) {
+                return view;
+            }
+            ServerTest.awaitTicks(1);
+        } while (System.currentTimeMillis() < deadline);
+        throw new AssertionError(name + "'s client did not show what was expected within "
+                + MESSAGE_TIMEOUT_MILLIS / 1000 + " s. It shows: " + view);
+    }
+
     /** The title of the inventory open on the client (a chest GUI, ...), or null if none is open. */
     public String openInventoryTitle() {
         Bots.requireOffMainThread();

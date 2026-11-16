@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
-import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -217,25 +216,31 @@ public abstract class ServerTestTask extends DefaultTask {
             String version = p.getServerName().get();
             File serverDir = p.getServerDirectory().get().getAsFile();
             File resultsDir = p.getResultsDirectory().get().getAsFile();
-            int serverPort = prepareServerDirectory(serverDir.toPath());
-            getFiles().delete(spec -> spec.delete(resultsDir));
-            resultsDir.mkdirs();
-            File log = new File(resultsDir, "server.log");
-
-            int botPort = freePort();
-            Process botController = startBotController(botPort, serverPort, resultsDir);
+            int serverPort = Ports.reserve();
+            int botPort = Ports.reserve();
+            int proxyPort = Ports.reserve();
             try {
-                runServer(version, serverDir, resultsDir, log, botPort);
-            } finally {
-                botController.getOutputStream().close(); // makes the controller exit
-                if (!botController.waitFor(10, TimeUnit.SECONDS)) {
-                    botController.destroyForcibly();
+                prepareServerDirectory(serverDir.toPath(), serverPort);
+                getFiles().delete(spec -> spec.delete(resultsDir));
+                resultsDir.mkdirs();
+                File log = new File(resultsDir, "server.log");
+
+                Process botController = startBotController(botPort, proxyPort, serverPort, resultsDir);
+                try {
+                    runServer(version, serverDir, resultsDir, log, botPort);
+                } finally {
+                    botController.getOutputStream().close(); // makes the controller exit
+                    if (!botController.waitFor(10, TimeUnit.SECONDS)) {
+                        botController.destroyForcibly();
+                    }
                 }
+            } finally {
+                Ports.release(serverPort, botPort, proxyPort);
             }
         }
 
         /** Started for every run (it is small); ViaProxy is only started once a test uses bots. */
-        private Process startBotController(int controlPort, int serverPort, File resultsDir) throws IOException {
+        private Process startBotController(int controlPort, int proxyPort, int serverPort, File resultsDir) throws IOException {
             Params p = getParameters();
             File workDir = new File(resultsDir, "bots");
             workDir.mkdirs();
@@ -243,7 +248,7 @@ public abstract class ServerTestTask extends DefaultTask {
                     p.getBotJavaExecutable().get().getAsFile().getAbsolutePath(),
                     "-jar", p.getBotControllerJar().get().getAsFile().getAbsolutePath(),
                     String.valueOf(controlPort),
-                    String.valueOf(freePort()),
+                    String.valueOf(proxyPort),
                     String.valueOf(serverPort),
                     p.getViaProxyJar().get().getAsFile().getAbsolutePath(),
                     workDir.getAbsolutePath())
@@ -307,14 +312,8 @@ public abstract class ServerTestTask extends DefaultTask {
             report(version, pluginName, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
         }
 
-        private static int freePort() throws IOException {
-            try (ServerSocket socket = new ServerSocket(0)) {
-                return socket.getLocalPort();
-            }
-        }
-
-        /** Writes a fresh server configuration and returns the server's port. */
-        private int prepareServerDirectory(Path dir) throws IOException {
+        /** Writes a fresh server configuration for a server on the given port. */
+        private void prepareServerDirectory(Path dir, int port) throws IOException {
             Files.createDirectories(dir);
             try (var entries = Files.list(dir)) {
                 for (Path entry : (Iterable<Path>) entries::iterator) {
@@ -323,7 +322,6 @@ public abstract class ServerTestTask extends DefaultTask {
                     }
                 }
             }
-            int port = freePort();
             Files.writeString(dir.resolve("eula.txt"), "eula=true\n");
             Files.writeString(dir.resolve("bukkit.yml"), String.join("\n",
                     "settings:",
@@ -351,7 +349,6 @@ public abstract class ServerTestTask extends DefaultTask {
             for (File other : p.getOtherPlugins().getFiles()) {
                 Files.copy(other.toPath(), plugins.resolve("other-" + index++ + "-" + other.getName()), StandardCopyOption.REPLACE_EXISTING);
             }
-            return port;
         }
 
         /** What the server output has shown so far. */

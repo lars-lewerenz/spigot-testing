@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
  * KICKED name            -> OK base64(reason) | OK  (still online, or never kicked)
  * CHAT name base64(text) -> OK | ERR reason    (text starting with "/" is sent as a command)
  * MESSAGES name          -> OK n, then n lines of base64(message)
+ * VIEW name              -> OK n, then n lines "key [number] base64(text)" (see ClientView#describe)
  * QUIT name              -> OK
  * INVENTORY name         -> OK base64(title of the open container) | OK  (nothing open)
  * CLICK name slot type   -> OK | ERR reason    (type: LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT)
@@ -150,6 +151,11 @@ public final class BotController {
                 for (String message : messages) {
                     out.println(base64(message));
                 }
+            }
+            case "VIEW" -> {
+                List<String> lines = bot(name).view();
+                out.println("OK " + lines.size());
+                lines.forEach(out::println);
             }
             case "INVENTORY" -> {
                 String title = bot(name).openContainerTitle();
