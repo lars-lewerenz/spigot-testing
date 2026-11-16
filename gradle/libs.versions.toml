@@ -2,13 +2,16 @@
 # tests/failure-paths; Dependabot keeps it up to date (.github/dependabot.yml).
 
 [versions]
+# JUnit 5 is the last line that runs on Java 8, which servers 1.8.8 - 1.16.5 need (JUnit 6: Java 17+).
 junit = "5.14.4"
 # Bot client: MCProtocolLib speaks the newest protocol; ViaProxy translates to older servers.
 # New Minecraft versions usually need both updated.
 mcprotocollib = "26.3-4"
 viaproxy = "3.4.14"
 adventure = "5.2.0"
-slf4j = "2.0.17"
+slf4j = "2.0.20"
+# Compatibility floors: plugins compile against the oldest API they support, so the same jar
+# runs on every newer server. Not updated by Dependabot (see .github/dependabot.yml).
 spigot-api = "1.8.8-R0.1-SNAPSHOT"
 paper-api = "1.21.11-R0.1-SNAPSHOT"
 placeholderapi = "2.12.3"
