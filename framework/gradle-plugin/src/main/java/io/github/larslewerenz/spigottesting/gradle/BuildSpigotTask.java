@@ -118,11 +118,6 @@ public abstract class BuildSpigotTask extends DefaultTask {
             LOGGER.lifecycle("[{}] Building Spigot {} with BuildTools on Java {}. This takes a few minutes; the jar is cached in {}",
                     version, version, p.getJavaVersion().get(), serverJar.getParent());
 
-            String gitBash = WINDOWS ? GitBash.directory() : null;
-            if (WINDOWS && gitBash == null) {
-                throw new GradleException("BuildTools needs Git for Windows (with Git Bash) to build Spigot: https://git-scm.com/download/win");
-            }
-
             long start = System.nanoTime();
             ExecResult result;
             try (OutputStream out = new FileOutputStream(log)) {
@@ -133,10 +128,10 @@ public abstract class BuildSpigotTask extends DefaultTask {
                             "--output-dir", serverJar.getParentFile().getAbsolutePath(),
                             "--final-name", serverJar.getName());
                     spec.setWorkingDir(workDir);
-                    if (gitBash != null) {
-                        // BuildTools runs "bash applyPatches.sh"; on Windows "bash" would otherwise
-                        // find System32\bash.exe, the WSL launcher, which fails without WSL.
-                        spec.environment("PATH", gitBash + File.pathSeparator + System.getenv("PATH"));
+                    if (WINDOWS) {
+                        // Makes BuildTools use its own PortableGit instead of a "bash" that
+                        // Windows may resolve to the WSL launcher (see WindowsPath).
+                        spec.environment("PATH", WindowsPath.withoutShells(System.getenv("PATH")));
                     }
                     spec.setStandardOutput(out);
                     spec.setErrorOutput(out);

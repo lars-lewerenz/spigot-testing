@@ -78,6 +78,9 @@ running the example plugin's full suite (17 tests):
   checked against its SHA-256. Both are cached per machine.
 - **Java** is picked per server: the lowest LTS release the server supports, read from the
   server's own metadata.
+- **Paper plugins** (`paper-plugin.yml`, Brigadier commands, Adventure) work too: the test harness
+  then becomes a Paper plugin itself, so tests can use your plugin's classes. See
+  [`example-paper-plugin`](example-paper-plugin).
 - CI tests 8 of them on every push; the [compatibility workflow](.github/workflows/compatibility.yml)
   runs all 36 on demand. Versions in between work the same way — just list them.
 
@@ -89,7 +92,7 @@ running the example plugin's full suite (17 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.3.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.4.0"
 }
 
 repositories {
@@ -155,6 +158,14 @@ one run without touching the build script — e.g. in a CI matrix:
 ```bash
 ./gradlew serverTest -PspigotTesting.versions=1.8.8,1.21.11 -PspigotTesting.paperVersions=
 ```
+
+### Requirements
+
+| | |
+|---|---|
+| **Gradle** | 8.5 or newer (tested on 8.5, 8.14, 9.0 and 9.8), running on Java 17+. The [configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html) is supported. |
+| **OS** | Linux, Windows and macOS. On Windows, BuildTools downloads its own Git to build Spigot. |
+| **Plugins** | Spigot/Bukkit plugins (`plugin.yml`) on Spigot and Paper; Paper plugins (`paper-plugin.yml`) on Paper. |
 
 ## ✍️ Writing tests
 
@@ -452,7 +463,9 @@ For each server, `serverTest_<version>`:
 
 | Symptom | What's going on |
 |---|---|
-| `… stopped without test results (did the plugin under test fail to load or enable?)` | Your plugin didn't load on that server, so the test harness (which depends on it) didn't either. The message lists the errors from the server log — e.g. `UnsupportedClassVersionError` when the plugin is compiled for a newer Java than that server runs (use `options.release`). |
+| `… stopped without test results` | Your plugin didn't load on that server, so the test harness (which depends on it) didn't either. The message lists the errors from the server log — e.g. `UnsupportedClassVersionError` when the plugin is compiled for a newer Java than that server runs (use `options.release`). |
+| `The plugin under test (X) was not loaded` / `… is not enabled` | Your plugin failed to load or threw in `onEnable` on that server — the tests don't run without it. The message lists the server log's errors. |
+| `The plugin under test (X) failed while enabling on …` | Your `onEnable` threw. Spigot keeps such a plugin enabled, so the tests may even have passed — but the plugin is broken on that server. |
 | `Running a Minecraft server requires accepting the Minecraft EULA` | Set `spigotTesting.acceptEula=true` (see [Quick start](#-quick-start)). Checked before any server is built. |
 | A test passes on one version and fails on another | That's what this is for. 🙂 The server log and JUnit XML report are in `build/spigot-testing/<server>/results`. |
 | Tests can't use package-private plugin classes | Tests are loaded by a different class loader than your plugin; use its public API. |
@@ -464,6 +477,8 @@ framework/                 the framework (an included Gradle build)
 ├── gradle-plugin/         Gradle plugin io.github.lars-lewerenz.spigot-testing (Java 17+)
 ├── runtime/               runs inside the server: ServerTest, Bots, EventRecorder, JUnit runner (Java 8)
 └── bots/                  bot controller: MCProtocolLib + ViaProxy (Java 21), bundled into the plugin
+example-paper-plugin/      a Paper plugin (paper-plugin.yml, Brigadier, Adventure) and its tests
+tests/failure-paths/       projects that must fail, and check.sh, which checks they fail clearly
 example-plugin/            "Greeter": /greet, /rules (a config folder), a /menu GUI, welcome messages,
                            creeper blocking, night skipping, a PlaceholderAPI placeholder — and tests
                            for all of it
@@ -478,7 +493,7 @@ one line, no credentials, no extra repositories.
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.3.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.4.0"
 }
 repositories {
     mavenCentral()                                                   // JUnit

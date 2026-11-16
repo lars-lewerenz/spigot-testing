@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0]
+
+### Compatibility
+
+- **Gradle configuration cache** supported (and tested).
+- **Gradle 8.5+**: tested on 8.5, 8.14, 9.0 and 9.8.
+- **Windows**: the framework is built and tested on Windows in CI, with server tests on Spigot 1.8.8
+  and Paper 26.3. BuildTools no longer runs into the WSL launcher (System32\bash.exe): it now always
+  uses its own PortableGit on Windows.
+- **Paper plugins** (`paper-plugin.yml`): the test harness becomes a Paper plugin that can use the
+  plugin's classes. New `example-paper-plugin` with a Brigadier command and Adventure messages.
+
+### Failures are reported, everywhere
+
+- Tests no longer run when the plugin under test failed to load: modern Paper loaded the harness
+  anyway, which could give a green run without the plugin.
+- A plugin whose `onEnable` throws fails the run on every server (Spigot keeps such a plugin
+  enabled).
+- `tests/failure-paths`: projects that must fail, checked on Spigot and Paper in CI.
+
+Tested on all 36 servers (18 versions, Spigot and Paper).
+
 ## [0.3.0]
 
 ### Installation without credentials
