@@ -31,6 +31,8 @@ import org.junit.platform.reporting.legacy.xml.LegacyXmlReportGeneratingListener
 final class TestRunner {
 
     private static final String TEST_LIST = "spigot-testing/tests.txt";
+    /** Written to the output directory when there are {@code @AfterRestart} tests to run. */
+    static final String RESTART_REQUEST = "restart-requested";
 
     private final JavaPlugin plugin;
     private final File outputDir;
@@ -49,10 +51,8 @@ final class TestRunner {
         plugin.getLogger().info(ProgressListener.MARKER + "INFO Running " + selectors.size()
                 + " test class(es) on " + Bukkit.getName() + " " + Bukkit.getVersion());
 
-        LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
-                .selectors(selectors)
-                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
-                .build();
+        boolean afterRestart = RestartPhase.current();
+        LauncherDiscoveryRequest request = request(selectors, afterRestart);
         // Only the listeners registered below: auto-registered ones (e.g. Open Test Reporting)
         // are not needed and may not run on the server's Java version.
         Launcher launcher = LauncherFactory.create(LauncherConfig.builder()
@@ -61,6 +61,12 @@ final class TestRunner {
                 .enableLauncherDiscoveryListenerAutoRegistration(false)
                 .enablePostDiscoveryFilterAutoRegistration(false)
                 .build());
+
+        if (!afterRestart && launcher.discover(request(selectors, true)).containsTests()) {
+            // Tell the Gradle task to start the server again for the @AfterRestart tests.
+            Files.createDirectories(outputDir.toPath());
+            Files.write(new File(outputDir, RESTART_REQUEST).toPath(), new byte[0]);
+        }
 
         File xmlDir = new File(outputDir, "junit-xml");
         Files.createDirectories(xmlDir.toPath());
@@ -74,6 +80,14 @@ final class TestRunner {
             plugin.getLogger().warning("Writing the XML report failed: " + xmlErrors);
         }
         writeSummary(summary.getSummary());
+    }
+
+    private static LauncherDiscoveryRequest request(List<DiscoverySelector> selectors, boolean afterRestart) {
+        return LauncherDiscoveryRequestBuilder.request()
+                .selectors(selectors)
+                .filters(new RestartPhase(afterRestart))
+                .configurationParameter("junit.jupiter.extensions.autodetection.enabled", "true")
+                .build();
     }
 
     private static List<String> readTestClassNames(ClassLoader classLoader) throws IOException {

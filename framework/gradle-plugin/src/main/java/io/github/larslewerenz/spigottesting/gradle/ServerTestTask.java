@@ -195,6 +195,10 @@ public abstract class ServerTestTask extends DefaultTask {
         private static final String MARKER = "##spigot-testing## ";
         /** Files the server unpacks on first start (1.18+); kept between runs to save time. */
         private static final Set<String> KEPT_FILES = Set.of("bundler", "libraries", "cache", "versions");
+        /** Written by the test runtime when there are @AfterRestart tests. */
+        private static final String RESTART_REQUEST = "restart-requested";
+        /** The phase name passed to the server, and the results subfolder of that run. */
+        private static final String AFTER_RESTART = "after-restart";
 
         @Inject
         protected abstract FileSystemOperations getFiles();
@@ -223,11 +227,22 @@ public abstract class ServerTestTask extends DefaultTask {
                 prepareServerDirectory(serverDir.toPath(), serverPort);
                 getFiles().delete(spec -> spec.delete(resultsDir));
                 resultsDir.mkdirs();
-                File log = new File(resultsDir, "server.log");
-
                 Process botController = startBotController(botPort, proxyPort, serverPort, resultsDir);
                 try {
-                    runServer(version, serverDir, resultsDir, log, botPort);
+                    long start = System.nanoTime();
+                    List<File> runs = new ArrayList<>();
+                    runs.add(resultsDir);
+                    runServer(version, serverDir, resultsDir, botPort, null);
+                    if (new File(resultsDir, RESTART_REQUEST).isFile()) {
+                        // Same server folder, nothing wiped: what the plugins saved is still there.
+                        File afterRestart = new File(resultsDir, AFTER_RESTART);
+                        afterRestart.mkdirs();
+                        LOGGER.lifecycle("[{}] Restarting the server for the @AfterRestart tests", version);
+                        runServer(version, serverDir, afterRestart, botPort, AFTER_RESTART);
+                        runs.add(afterRestart);
+                    }
+                    String pluginName = GenerateHarnessResources.readPluginName(p.getPluginJar().get().getAsFile());
+                    report(version, pluginName, runs, Duration.ofNanos(System.nanoTime() - start));
                 } finally {
                     botController.getOutputStream().close(); // makes the controller exit
                     if (!botController.waitFor(10, TimeUnit.SECONDS)) {
@@ -257,9 +272,11 @@ public abstract class ServerTestTask extends DefaultTask {
                     .start();
         }
 
-        private void runServer(String version, File serverDir, File resultsDir, File log, int botPort)
+        /** Runs the server once; {@code phase} is null for the first run. */
+        private void runServer(String version, File serverDir, File resultsDir, int botPort, String phase)
                 throws IOException, InterruptedException {
             Params p = getParameters();
+            File log = new File(resultsDir, "server.log");
             List<String> command = new ArrayList<>();
             command.add(p.getJavaExecutable().get().getAsFile().getAbsolutePath());
             command.addAll(p.getJvmArgs().get());
@@ -269,12 +286,14 @@ public abstract class ServerTestTask extends DefaultTask {
             command.add("-Dspigottesting.bots.port=" + botPort);
             command.add("-Dspigottesting.serverType=" + p.getServerType().get());
             command.add("-Dspigottesting.minecraftVersion=" + p.getMinecraftVersion().get());
+            if (phase != null) {
+                command.add("-Dspigottesting.phase=" + phase);
+            }
             command.add("-jar");
             command.add(p.getServerJar().get().getAsFile().getAbsolutePath());
             command.add("nogui");
 
             LOGGER.lifecycle("[{}] Starting {} on Java {}", version, version, p.getJavaVersion().get());
-            long start = System.nanoTime();
             Process process = new ProcessBuilder(command)
                     .directory(serverDir)
                     .redirectErrorStream(true)
@@ -308,8 +327,6 @@ public abstract class ServerTestTask extends DefaultTask {
                 }
             }
             pump.join(5000);
-            String pluginName = GenerateHarnessResources.readPluginName(p.getPluginJar().get().getAsFile());
-            report(version, pluginName, resultsDir, log, Duration.ofNanos(System.nanoTime() - start));
         }
 
         /** Writes a fresh server configuration for a server on the given port. */
@@ -397,35 +414,58 @@ public abstract class ServerTestTask extends DefaultTask {
             }
         }
 
-        private static void report(String version, String pluginName, File resultsDir, File log, Duration took)
+        /** Reports the results of the server runs (one, or two with a restart) and fails on failures. */
+        private static void report(String version, String pluginName, List<File> runs, Duration took)
                 throws IOException {
-            File summaryFile = new File(resultsDir, "summary.properties");
-            if (!summaryFile.isFile()) {
-                File error = new File(resultsDir, "error.txt");
-                throw new GradleException(version + " stopped without test results"
-                        + (error.isFile() ? ":\n" + Files.readString(error.toPath()) : " (did the plugin under test fail to load or enable?)")
-                        + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
+            long found = 0;
+            long succeeded = 0;
+            long failed = 0;
+            long skipped = 0;
+            long aborted = 0;
+            String server = null;
+            StringBuilder failures = new StringBuilder();
+            for (File resultsDir : runs) {
+                File log = new File(resultsDir, "server.log");
+                String run = resultsDir.getName().equals(AFTER_RESTART) ? version + " (after the restart)" : version;
+                File summaryFile = new File(resultsDir, "summary.properties");
+                if (!summaryFile.isFile()) {
+                    File error = new File(resultsDir, "error.txt");
+                    throw new GradleException(run + " stopped without test results"
+                            + (error.isFile() ? ":\n" + Files.readString(error.toPath()) : " (did the plugin under test fail to load or enable?)")
+                            + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
+                }
+                Properties summary = new Properties();
+                try (var in = Files.newInputStream(summaryFile.toPath())) {
+                    summary.load(in);
+                }
+                if (server == null) {
+                    server = summary.getProperty("server");
+                }
+                found += Long.parseLong(summary.getProperty("found"));
+                succeeded += Long.parseLong(summary.getProperty("succeeded"));
+                failed += Long.parseLong(summary.getProperty("failed"));
+                skipped += Long.parseLong(summary.getProperty("skipped"));
+                aborted += Long.parseLong(summary.getProperty("aborted"));
+                String enableError = Logs.enableError(log, pluginName);
+                if (enableError != null) {
+                    // Spigot keeps a plugin enabled when its onEnable throws, so the tests ran; the
+                    // plugin is still broken on this server.
+                    throw new GradleException("The plugin under test (" + pluginName + ") failed while enabling on " + run
+                            + ":\n" + enableError + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
+                }
+                File failuresFile = new File(resultsDir, "failures.txt");
+                if (failuresFile.isFile()) {
+                    failures.append(Files.readString(failuresFile.toPath()));
+                }
             }
-            Properties summary = new Properties();
-            try (var in = Files.newInputStream(summaryFile.toPath())) {
-                summary.load(in);
-            }
-            long found = Long.parseLong(summary.getProperty("found"));
-            long failed = Long.parseLong(summary.getProperty("failed"));
-            LOGGER.lifecycle("[{}] {}: {} tests, {} passed, {} failed, {} skipped, {} aborted ({} s)",
-                    version, summary.getProperty("server"), found, summary.getProperty("succeeded"), failed,
-                    summary.getProperty("skipped"), summary.getProperty("aborted"), took.toSeconds());
-            String enableError = Logs.enableError(log, pluginName);
-            if (enableError != null) {
-                // Spigot keeps a plugin enabled when its onEnable throws, so the tests ran; the
-                // plugin is still broken on this server.
-                throw new GradleException("The plugin under test (" + pluginName + ") failed while enabling on " + version
-                        + ":\n" + enableError + "\nServer log: " + log + "\n" + Logs.problems(log, 30));
-            }
+            LOGGER.lifecycle("[{}] {}: {} tests, {} passed, {} failed, {} skipped, {} aborted ({} s{})",
+                    version, server, found, succeeded, failed, skipped, aborted, took.toSeconds(),
+                    runs.size() > 1 ? ", with a restart" : "");
             if (failed > 0) {
-                throw new GradleException(failed + " server test(s) failed on " + version + ":\n\n"
-                        + Files.readString(new File(resultsDir, "failures.txt").toPath())
-                        + "JUnit XML report: " + new File(resultsDir, "junit-xml") + "\nServer log: " + log);
+                throw new GradleException(failed + " server test(s) failed on " + version + ":\n\n" + failures
+                        + "JUnit XML report: " + new File(runs.get(0), "junit-xml")
+                        + (runs.size() > 1 ? " and " + new File(runs.get(1), "junit-xml") : "")
+                        + "\nServer log: " + new File(runs.get(0), "server.log"));
             }
             if (found == 0) {
                 throw new GradleException("No server tests were found. Put them in src/serverTest/java.");

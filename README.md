@@ -302,6 +302,36 @@ void creepersSpawnWhenBlockingIsSwitchedOff() {
 > see the change immediately; plugins that read their config once on enable need their reload
 > command (or a separate server file layer) instead.
 
+### 🔄 Across a restart
+
+Does your plugin keep its data when the server restarts? Tests annotated **`@AfterRestart`** run
+after all the others, once the server has shut down normally (plugins disabled, data saved) and
+started again with the same folder — worlds, configs and plugin data included:
+
+```java
+@OffMainThread
+class GreeterRestartTest {
+
+    @Test
+    void newcomersAreMetForTheFirstTime() {
+        Bot newcomer = Bots.join("Newcomer");
+
+        assertEquals(ChatColor.AQUA + "Nice to meet you, Newcomer!", newcomer.awaitMessage("Nice to meet you"));
+    }
+
+    @Test
+    @AfterRestart // runs once all other tests are done and the server has been restarted
+    void theyAreRememberedAfterARestart() {
+        Bot newcomer = Bots.join("Newcomer");
+
+        assertEquals(ChatColor.AQUA + "Good to see you again, Newcomer!", newcomer.awaitMessage("again"));
+    }
+}
+```
+
+The server only restarts when there are `@AfterRestart` tests. Their results are in
+`results/after-restart` next to the first run's.
+
 ## 🤖 Fake players
 
 `Bots.join(name)` connects a **bot client over the real network protocol**. The server runs its
@@ -613,8 +643,7 @@ resolved. Every release is also attached to [GitHub Releases](https://github.com
   cover your whole range.
 - **Latest builds:** Paper jars (and BuildTools' Spigot) are the latest build of a version at the
   time they're first cached. Delete `~/.gradle/caches/spigot-testing/servers` to refresh.
-- **Ideas:** client-side movement and block interaction, restarting the server within a test run
-  to check persistence.
+- **Ideas:** client-side movement and block interaction.
 
 ## 📄 License
 

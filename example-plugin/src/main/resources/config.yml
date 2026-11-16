@@ -4,6 +4,9 @@ greeting: '&aHello, %name%!'
 welcome: '&eWelcome, %name%!'
 welcome-title: '&6Welcome!'
 welcome-subtitle: '&eHave fun, %name%'
+# Sent after the welcome: to players who have never joined before, and to everyone else.
+first-visit: '&bNice to meet you, %name%!'
+return-visit: '&bGood to see you again, %name%!'
 # Cancel every creeper spawn.
 block-creepers: true
 # Skip the night: set the time back to morning whenever it gets dark.

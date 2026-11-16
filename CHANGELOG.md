@@ -8,6 +8,8 @@
   `ClientView` with the title and subtitle, the action bar, boss bars, the sidebar scoreboard (as
   the client renders it, team prefixes included) and the tab list with its header and footer.
   Works on every version, whichever API the plugin uses.
+- **Restarts:** tests annotated `@AfterRestart` run after the server has been stopped and started
+  again with the same folder, to check what a plugin keeps across a restart.
 
 ### Fixes
 

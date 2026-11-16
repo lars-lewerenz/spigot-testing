@@ -19,17 +19,28 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
 
     private int greetings;
     private Sidebar sidebar;
+    private Visitors visitors;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         sidebar = new Sidebar(getServer().getScoreboardManager().getNewScoreboard());
+        visitors = new Visitors(new java.io.File(getDataFolder(), "visitors.yml"));
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(new GreeterMenu(this), this);
         getServer().getScheduler().runTaskTimer(this, this::lockDay, 20L, 20L);
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             // Only touch the expansion class when PlaceholderAPI is installed (soft dependency).
             new GreeterExpansion(this).register();
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        try {
+            visitors.save();
+        } catch (java.io.IOException e) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Could not save visitors.yml", e);
         }
     }
 
@@ -94,6 +105,8 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         player.sendMessage(Greetings.format(getConfig().getString("welcome"), player.getName()));
+        String visit = visitors.visit(player.getName()) ? "first-visit" : "return-visit";
+        player.sendMessage(Greetings.format(getConfig().getString(visit), player.getName()));
         player.sendTitle(Greetings.format(getConfig().getString("welcome-title"), player.getName()),
                 Greetings.format(getConfig().getString("welcome-subtitle"), player.getName()));
         player.setPlayerListName(ChatColor.YELLOW + player.getName());
