@@ -8,6 +8,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.ServerboundClientTickEndPacket;
+import org.cloudburstmc.math.vector.Vector3i;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.object.Direction;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.Hand;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PlayerAction;
+import org.geysermc.mcprotocollib.protocol.data.game.entity.player.PositionElement;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundMovePlayerPosPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundPlayerActionPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundSetCarriedItemPacket;
+import org.geysermc.mcprotocollib.protocol.packet.ingame.serverbound.player.ServerboundUseItemOnPacket;
 import net.kyori.adventure.text.Component;
 import org.geysermc.mcprotocollib.network.ClientSession;
 import org.geysermc.mcprotocollib.network.Session;
@@ -55,6 +69,21 @@ final class Bot {
     private String containerTitle;
     /** The server's last state id; clicks must send it back. */
     private int stateId;
+    /** Sends every bot's "tick end", like a client does after each of its ticks (every 50 ms). */
+    private static final ScheduledExecutorService TICKER = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "bot-ticks");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    /** Blocks per movement packet, sent every 50 ms: about a player's walking speed. */
+    private static final double STEP = 0.2;
+    /** Where the server last put this player (x, y, z, yaw, pitch), or null before it spawned. */
+    private double[] position;
+    /** How many teleports the client has confirmed. */
+    private int teleports;
+    /** Numbers block interactions, as the server expects (1.19+; ViaProxy handles older ones). */
+    private final AtomicInteger sequence = new AtomicInteger();
     /** Set when the test disconnects the bot itself, so that is not taken for a kick. */
     private volatile boolean quitting;
     /** Why the server disconnected this bot (a kick), or null while it is online. */
@@ -113,6 +142,107 @@ final class Bot {
             // Unsigned chat: the test servers run in offline mode without secure profiles.
             session.send(new ServerboundChatPacket(text, System.currentTimeMillis(), 0L, null, 0, new BitSet(), 0));
         }
+    }
+
+    /** Applies a teleport from the server (parts of it may be relative) and returns the new position. */
+    private synchronized double[] teleported(ClientboundPlayerPositionPacket packet) {
+        double[] old = position == null ? new double[5] : position;
+        List<PositionElement> relative = packet.getRelatives();
+        teleports++;
+        position = new double[] {
+            packet.getPosition().getX() + (relative.contains(PositionElement.X) ? old[0] : 0),
+            packet.getPosition().getY() + (relative.contains(PositionElement.Y) ? old[1] : 0),
+            packet.getPosition().getZ() + (relative.contains(PositionElement.Z) ? old[2] : 0),
+            packet.getYRot() + (relative.contains(PositionElement.Y_ROT) ? old[3] : 0),
+            packet.getXRot() + (relative.contains(PositionElement.X_ROT) ? old[4] : 0),
+        };
+        return position.clone();
+    }
+
+    /**
+     * Where the client thinks it is (x, y, z), as of the last teleport it confirmed or step it sent,
+     * and how many teleports it has confirmed so far.
+     */
+    synchronized double[] clientPosition() {
+        double[] at = position();
+        return new double[] {at[0], at[1], at[2], teleports};
+    }
+
+    private synchronized double[] position() {
+        if (position == null) {
+            throw new IllegalStateException(name + " has not spawned yet");
+        }
+        return position.clone();
+    }
+
+    private synchronized void moved(double[] to) {
+        position = to;
+    }
+
+    /**
+     * Walks to the given position in a straight line at about walking speed, sending movement
+     * packets like a client. No pathfinding: if something is in the way, the server pushes the
+     * player back and this gives up.
+     */
+    void moveTo(double x, double y, double z) throws InterruptedException {
+        double[] start = position();
+        double distance = Math.sqrt(square(x - start[0]) + square(y - start[1]) + square(z - start[2]));
+        int maxSteps = (int) (distance / STEP) + 40;
+        for (int i = 0; i < maxSteps; i++) {
+            double[] from = position();
+            double dx = x - from[0];
+            double dy = y - from[1];
+            double dz = z - from[2];
+            double left = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (left < 1e-6) {
+                return;
+            }
+            double f = Math.min(1, STEP / left);
+            double[] to = {from[0] + dx * f, from[1] + dy * f, from[2] + dz * f, from[3], from[4]};
+            if (!session.isConnected()) {
+                throw new IllegalStateException(name + " was disconnected while walking: " + kickReason);
+            }
+            moved(to);
+            session.send(new ServerboundMovePlayerPosPacket(true, false, to[0], to[1], to[2]));
+            // One position per client tick: 26.3+ disconnects clients that send two.
+            session.send(ServerboundClientTickEndPacket.INSTANCE);
+            Thread.sleep(50);
+        }
+        throw new IllegalStateException(name + " could not get to " + x + " " + y + " " + z
+                + " (something in the way?); it is at " + java.util.Arrays.toString(position()));
+    }
+
+    private static double square(double d) {
+        return d * d;
+    }
+
+    /**
+     * Starts breaking the block, like holding the attack button on it. In creative mode it breaks
+     * at once; in survival the server breaks it once the player has mined it long enough.
+     */
+    void breakBlock(int x, int y, int z, boolean creative) {
+        Vector3i block = Vector3i.from(x, y, z);
+        session.send(new ServerboundPlayerActionPacket(PlayerAction.START_DIGGING, block, Direction.UP, sequence.incrementAndGet()));
+        if (!creative) {
+            // Releasing early is fine: the server finishes the block when its mining time is up.
+            session.send(new ServerboundPlayerActionPacket(PlayerAction.FINISH_DIGGING, block, Direction.UP, sequence.incrementAndGet()));
+        }
+    }
+
+    /** Right-clicks a face of the block with the item in hand: places a block, opens a door, ... */
+    void useItemOn(int x, int y, int z, String face) {
+        Direction direction = Direction.valueOf(face);
+        // Where on the face the click lands: its center.
+        float cx = direction == Direction.EAST ? 1 : direction == Direction.WEST ? 0 : 0.5f;
+        float cy = direction == Direction.UP ? 1 : direction == Direction.DOWN ? 0 : 0.5f;
+        float cz = direction == Direction.SOUTH ? 1 : direction == Direction.NORTH ? 0 : 0.5f;
+        session.send(new ServerboundUseItemOnPacket(Vector3i.from(x, y, z), direction, Hand.MAIN_HAND, cx, cy, cz,
+                false, false, sequence.incrementAndGet()));
+    }
+
+    /** Selects a hotbar slot (0-8), like pressing 1-9. */
+    void selectHotbarSlot(int slot) {
+        session.send(new ServerboundSetCarriedItemPacket(slot));
     }
 
     /** The title of the open container (a chest GUI, ...), or null if none is open. */
@@ -200,13 +330,22 @@ final class Bot {
                 return;
             }
             if (packet instanceof ClientboundPlayerPositionPacket position) {
-                // Confirm the server-side teleports, like a real client.
-                session.send(new ServerboundAcceptTeleportationPacket(position.getId(),
-                        position.getPosition().getX(), position.getPosition().getY(), position.getPosition().getZ(),
-                        position.getYRot(), position.getXRot()));
+                double[] at = teleported(position);
+                // Confirm the server-side teleports, like a real client. Newer servers take the
+                // position from the confirmation, so it must be the absolute one.
+                session.send(new ServerboundAcceptTeleportationPacket(position.getId(), at[0], at[1], at[2],
+                        (float) at[3], (float) at[4]));
                 if (!loaded) {
                     loaded = true;
                     session.send(ServerboundPlayerLoadedPacket.INSTANCE);
+                    // Like a client after each of its ticks. 26.3+ servers count movement per
+                    // client tick and reset their movement checks when a tick ends.
+                    ScheduledFuture<?> ticks = TICKER.scheduleAtFixedRate(() -> {
+                        if (session.isConnected()) {
+                            session.send(ServerboundClientTickEndPacket.INSTANCE);
+                        }
+                    }, 50, 50, TimeUnit.MILLISECONDS);
+                    onDisconnect(() -> ticks.cancel(false));
                     // Only now is the player fully in the game: some versions ignore commands
                     // from a player that has not confirmed its spawn position yet.
                     joined.complete(null);

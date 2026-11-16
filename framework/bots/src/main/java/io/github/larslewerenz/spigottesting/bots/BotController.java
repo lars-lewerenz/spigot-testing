@@ -29,6 +29,11 @@ import java.util.regex.Pattern;
  * INVENTORY name         -> OK base64(title of the open container) | OK  (nothing open)
  * CLICK name slot type   -> OK | ERR reason    (type: LEFT, RIGHT, SHIFT_LEFT, SHIFT_RIGHT)
  * CLOSE name             -> OK
+ * MOVE name x y z        -> OK | ERR reason    (walks there; answers once the last step is sent)
+ * BREAK name x y z mode  -> OK                 (mode: CREATIVE or SURVIVAL)
+ * USE name x y z face    -> OK                 (face: UP, DOWN, NORTH, SOUTH, EAST, WEST)
+ * HOTBAR name slot       -> OK
+ * POSITION name          -> OK x y z n         (where the client is, and how many teleports it confirmed)
  * </pre>
  *
  * <p>Bots connect through ViaProxy, so the one protocol version MCProtocolLib speaks works with
@@ -164,6 +169,30 @@ public final class BotController {
             case "CLICK" -> {
                 String[] args = request[2].split(" ", 2);
                 bot(name).click(Integer.parseInt(args[0]), args[1]);
+                out.println("OK");
+            }
+            case "MOVE" -> {
+                String[] xyz = request[2].split(" ", -1);
+                bot(name).moveTo(Double.parseDouble(xyz[0]), Double.parseDouble(xyz[1]), Double.parseDouble(xyz[2]));
+                out.println("OK");
+            }
+            case "BREAK" -> {
+                String[] args = request[2].split(" ", -1);
+                bot(name).breakBlock(Integer.parseInt(args[0]), Integer.parseInt(args[1]), Integer.parseInt(args[2]),
+                        args[3].equals("CREATIVE"));
+                out.println("OK");
+            }
+            case "USE" -> {
+                String[] args = request[2].split(" ", -1);
+                bot(name).useItemOn(Integer.parseInt(args[0]), Integer.parseInt(args[1]), Integer.parseInt(args[2]), args[3]);
+                out.println("OK");
+            }
+            case "POSITION" -> {
+                double[] at = bot(name).clientPosition();
+                out.println("OK " + at[0] + " " + at[1] + " " + at[2] + " " + (long) at[3]);
+            }
+            case "HOTBAR" -> {
+                bot(name).selectHotbarSlot(Integer.parseInt(request[2]));
                 out.println("OK");
             }
             case "CLOSE" -> {

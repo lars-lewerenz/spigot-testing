@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0]
 
 ### New
 
@@ -8,6 +8,11 @@
   `ClientView` with the title and subtitle, the action bar, boss bars, the sidebar scoreboard (as
   the client renders it, team prefixes included) and the tab list with its header and footer.
   Works on every version, whichever API the plugin uses.
+- **Walking and building:** `bot.moveTo(location)` walks there like a client (firing
+  `PlayerMoveEvent`s), `bot.breakBlock(block)` mines (instantly in creative, as long as a player
+  would in survival), `bot.rightClickBlock(block, face)` places blocks and uses doors, levers, ...,
+  `bot.selectHotbarSlot(slot)` switches items, and `bot.teleport(location)` teleports and waits for
+  the client to confirm. Greeter protects its spawn area, with tests.
 - **Restarts:** tests annotated `@AfterRestart` run after the server has been stopped and started
   again with the same folder, to check what a plugin keeps across a restart.
 
@@ -16,6 +21,10 @@
 - With many servers in parallel, a bot could join the wrong server: the port picked for one run's
   ViaProxy could be handed to another run's server before ViaProxy started. Ports now stay
   reserved for the whole run, and ViaProxy moves to another port if its own was taken.
+- Bots confirm teleports with their absolute position and end each client tick like a real
+  client; 26.3 servers rely on both.
+
+Tested on all 36 servers (18 versions, Spigot and Paper).
 
 ## [0.5.0]
 

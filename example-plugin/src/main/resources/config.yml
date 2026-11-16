@@ -17,3 +17,7 @@ banned-name-message: '&cThe name %name% is not allowed here.'
 # Players who write one of these words are kicked.
 kick-words: [grief]
 kick-message: '&cNo griefing, %name%!'
+# Only players with the greeter.build permission may build this close (in blocks) to the spawn.
+spawn-radius: 16
+spawn-protected-message: '&cYou can''t build at spawn.'
+left-spawn-message: '&7You left the spawn area.'

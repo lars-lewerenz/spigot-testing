@@ -28,6 +28,7 @@ public final class GreeterPlugin extends JavaPlugin implements Listener {
         visitors = new Visitors(new java.io.File(getDataFolder(), "visitors.yml"));
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getPluginManager().registerEvents(new GreeterMenu(this), this);
+        getServer().getPluginManager().registerEvents(new SpawnArea(this), this);
         getServer().getScheduler().runTaskTimer(this, this::lockDay, 20L, 20L);
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             // Only touch the expansion class when PlaceholderAPI is installed (soft dependency).

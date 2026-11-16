@@ -14,3 +14,7 @@ commands:
   rules:
     description: Shows the server rules from the files in plugins/Greeter/rules/
     usage: /<command>
+permissions:
+  greeter.build:
+    description: Build in the spawn area
+    default: op

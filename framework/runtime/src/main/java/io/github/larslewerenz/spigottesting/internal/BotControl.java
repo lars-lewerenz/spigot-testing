@@ -57,6 +57,29 @@ public final class BotControl {
         request("CLICK " + name + " " + slot + " " + type);
     }
 
+    public static void move(String name, double x, double y, double z) {
+        request("MOVE " + name + " " + x + " " + y + " " + z);
+    }
+
+    public static void breakBlock(String name, int x, int y, int z, boolean creative) {
+        request("BREAK " + name + " " + x + " " + y + " " + z + " " + (creative ? "CREATIVE" : "SURVIVAL"));
+    }
+
+    public static void useItemOn(String name, int x, int y, int z, String face) {
+        request("USE " + name + " " + x + " " + y + " " + z + " " + face);
+    }
+
+    /** Where the client is (x, y, z), and how many teleports it has confirmed. */
+    public static double[] position(String name) {
+        String[] parts = requestValue("POSITION " + name).split(" ", -1);
+        return new double[] {Double.parseDouble(parts[0]), Double.parseDouble(parts[1]), Double.parseDouble(parts[2]),
+            Double.parseDouble(parts[3])};
+    }
+
+    public static void selectHotbarSlot(String name, int slot) {
+        request("HOTBAR " + name + " " + slot);
+    }
+
     public static void closeInventory(String name) {
         request("CLOSE " + name);
     }

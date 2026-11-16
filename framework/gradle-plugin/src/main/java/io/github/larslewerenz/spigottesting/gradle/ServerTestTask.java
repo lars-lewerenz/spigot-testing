@@ -313,7 +313,7 @@ public abstract class ServerTestTask extends DefaultTask {
                         process.destroyForcibly();
                     }
                     pump.join(5000);
-                    throw new GradleException(version + " did not finish within " + timeout
+                    throw new GradleException(version + " did not finish within " + timeout.toSeconds() + " s"
                             + ". Server log: " + log + "\n" + Logs.problems(log, 30));
                 }
                 if (!stopRequested && watch.harnessMissing()) {

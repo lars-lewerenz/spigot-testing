@@ -4,6 +4,10 @@ import io.github.larslewerenz.spigottesting.internal.BotControl;
 import java.util.List;
 import java.util.function.Predicate;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 
@@ -177,6 +181,110 @@ public final class Bot {
             ServerTest.awaitTicks(1);
         } while (System.currentTimeMillis() < deadline);
         throw new AssertionError(name + " was not kicked within " + MESSAGE_TIMEOUT_MILLIS / 1000 + " s");
+    }
+
+    /**
+     * Teleports the player and waits until the client has arrived. Prefer this to
+     * {@code player().teleport(...)}: until the client confirms a teleport, the server ignores its
+     * block clicks and movement.
+     */
+    public void teleport(Location target) {
+        Bots.requireOffMainThread();
+        double teleportsBefore = BotControl.position(name)[3];
+        if (!ServerTest.sync(() -> player.teleport(target))) {
+            throw new IllegalStateException("The server refused to teleport " + name + " to " + target);
+        }
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        while (true) {
+            // A new teleport, not just the right place: the bot may have been there already.
+            double[] at = BotControl.position(name);
+            double dx = at[0] - target.getX();
+            double dy = at[1] - target.getY();
+            double dz = at[2] - target.getZ();
+            if (at[3] > teleportsBefore && dx * dx + dy * dy + dz * dz <= 0.01) {
+                break;
+            }
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError(name + "'s client did not arrive at " + target + "; it is at "
+                        + at[0] + " " + at[1] + " " + at[2]);
+            }
+            ServerTest.awaitTicks(1);
+        }
+        // The client confirmed on arrival; let the server handle the confirmation.
+        ServerTest.awaitTicks(2);
+    }
+
+    /**
+     * Walks to {@code target} in a straight line at about walking speed, sending movement packets
+     * like a client, so the server fires {@code PlayerMoveEvent}s along the way. Waits until the
+     * server has the player there. No pathfinding: keep the way clear.
+     */
+    public void moveTo(Location target) {
+        Bots.requireOffMainThread();
+        if (!target.getWorld().equals(ServerTest.sync(() -> player.getWorld()))) {
+            throw new IllegalArgumentException(name + " can only walk within its world (" + player.getWorld().getName() + ")");
+        }
+        BotControl.move(name, target.getX(), target.getY(), target.getZ());
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        while (true) {
+            Location at = ServerTest.sync(() -> player.getLocation());
+            if (at.distanceSquared(target) <= 0.01) {
+                return;
+            }
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError(name + " did not arrive at " + target + "; the server has it at " + at);
+            }
+            ServerTest.awaitTicks(1);
+        }
+    }
+
+    /**
+     * Breaks a block like a player holding the attack button on it: at once in creative mode, in
+     * survival once the player has mined it long enough (the server decides, as for real players).
+     * The block must be within reach. Returns right away; await the result, e.g. with
+     * {@link ServerTest#recordEvents(Class)} and {@code BlockBreakEvent}.
+     */
+    public void breakBlock(Block block) {
+        Bots.requireOffMainThread();
+        boolean creative = ServerTest.sync(() -> player.getGameMode() == GameMode.CREATIVE);
+        BotControl.breakBlock(name, block.getX(), block.getY(), block.getZ(), creative);
+    }
+
+    /**
+     * Right-clicks a face of a block with the item in hand, like a player: places a block next to
+     * it, opens a door or chest, flips a lever, ... The block must be within reach. Returns right
+     * away; the server handles the click on one of its next ticks.
+     */
+    public void rightClickBlock(Block block, BlockFace face) {
+        Bots.requireOffMainThread();
+        switch (face) {
+            case UP:
+            case DOWN:
+            case NORTH:
+            case SOUTH:
+            case EAST:
+            case WEST:
+                BotControl.useItemOn(name, block.getX(), block.getY(), block.getZ(), face.name());
+                break;
+            default:
+                throw new IllegalArgumentException("Only UP, DOWN, NORTH, SOUTH, EAST and WEST faces can be clicked, not " + face);
+        }
+    }
+
+    /** Selects a hotbar slot (0-8) like pressing 1-9, and waits until the server has it. */
+    public void selectHotbarSlot(int slot) {
+        Bots.requireOffMainThread();
+        if (slot < 0 || slot > 8) {
+            throw new IllegalArgumentException("Hotbar slots are 0-8, not " + slot);
+        }
+        BotControl.selectHotbarSlot(name, slot);
+        long deadline = System.currentTimeMillis() + MESSAGE_TIMEOUT_MILLIS;
+        while (ServerTest.sync(() -> player.getInventory().getHeldItemSlot()) != slot) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError("The server did not select hotbar slot " + slot + " for " + name);
+            }
+            ServerTest.awaitTicks(1);
+        }
     }
 
     /** Disconnects the client and waits until the server has removed the player. */

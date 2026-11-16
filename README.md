@@ -36,14 +36,14 @@ $ ./gradlew serverTest
 [Spigot 1.8.8]   PASSED GreeterMenuTest > clickingThePaperGreetsAndClosesTheMenu()
 [Paper 26.3]   PASSED GreeterPlayerTest > chatReachesOtherPlayers()
 …
-[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (14 s)
-[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (15 s)
-[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (16 s)
-[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (22 s)
-[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (22 s)
-[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (23 s)
-[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (21 s)
-[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 22 tests, 20 passed, 0 failed, 2 skipped, 0 aborted (26 s)
+[Spigot 1.8.8] CraftBukkit git-Spigot-3c60ece-741a1bd (MC: 1.8.8): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (14 s)
+[Paper 1.8.8] CraftBukkit git-PaperSpigot-445 (MC: 1.8.8): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (15 s)
+[Spigot 1.12.2] CraftBukkit git-Spigot-79a30d7-f4830a1 (MC: 1.12.2): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (16 s)
+[Spigot 26.3] Spigot 4664-Spigot-bed90fc-e89124d (MC: 26.3): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (22 s)
+[Spigot 1.20.4] CraftBukkit 4090-Spigot-b754dcc-38b1f49 (MC: 1.20.4): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (22 s)
+[Spigot 1.21.11] CraftBukkit 4598-Spigot-56165ca-d74c5d8 (MC: 1.21.11 Unobfuscated): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (23 s)
+[Paper 26.3] Paper 26.3-253-63e41db (MC: 26.3): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (21 s)
+[Paper 1.21.11] Paper 1.21.11-132-c5eb079 (MC: 1.21.11): 30 tests, 28 passed, 0 failed, 2 skipped, 0 aborted (26 s)
 
 BUILD SUCCESSFUL in 33s
 ```
@@ -60,12 +60,12 @@ BUILD SUCCESSFUL in 33s
 | 🔌 **Other plugins** | Vault, PlaceholderAPI, LuckPerms… installed next to yours from Maven, local files or download URLs. |
 | 🎯 **Just JUnit 5** | Familiar assertions and annotations; JUnit XML reports for your CI. |
 | 🧩 **Unit tests too** | Plain `src/test` tests on the build JVM, with the Spigot API on the classpath. |
-| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 22 tests in ~30 s. |
+| ⚡ **Fast after the first run** | Servers, JDKs and downloads are cached per machine: 8 servers × 30 tests in ~45 s. |
 
 ### Supported servers
 
 Every major Minecraft version from 1.8.8 to 26.3, on **Spigot** and **Paper** — 36 servers, all
-running the example plugin's full suite (22 tests):
+running the example plugin's full suite (30 tests):
 
 | | 1.8.8 | 1.9.4 | 1.10.2 | 1.11.2 | 1.12.2 | 1.13.2 | 1.14.4 | 1.15.2 | 1.16.5 | 1.17.1 | 1.18.2 | 1.19.4 | 1.20.4 | 1.20.6 | 1.21.4 | 1.21.11 | 26.1.2 | 26.3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -92,7 +92,7 @@ running the example plugin's full suite (22 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.5.0"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.6.0"
 }
 
 repositories {
@@ -407,6 +407,9 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 | `awaitInventory(title)` · `openInventoryTitle()` | the inventory open on the client |
 | `click(slot)` · `click(slot, ClickType)` | `LEFT`, `RIGHT`, `SHIFT_LEFT`, `SHIFT_RIGHT` on a raw slot number, like `InventoryClickEvent#getRawSlot` |
 | `closeInventory()` | closes it, like pressing Escape |
+| `moveTo(location)` · `teleport(location)` | walks there in a straight line (with `PlayerMoveEvent`s), or teleports and waits for the client |
+| `breakBlock(block)` · `rightClickBlock(block, face)` | mines a block (instantly in creative, as long as a player would in survival) · places the held block, opens doors, flips levers |
+| `selectHotbarSlot(slot)` | like pressing 1–9 |
 | `quit()` · `isOnline()` | disconnects and waits until the server has removed the player |
 | `awaitKick()` | waits until the server disconnects the bot and returns the reason it gave |
 | `Bots.expectRejection(name)` | joins a bot the server must turn away and returns the reason |
@@ -414,6 +417,36 @@ void clickingThePaperGreetsAndClosesTheMenu() {
 > [!TIP]
 > Bots still online at the end of a test are disconnected automatically, and event recorders
 > stop — every test starts from a clean slate.
+
+### 🧱 Walking and building
+
+```java
+@Test
+void nobodyBuildsAtSpawn() {
+    Bot alex = Bots.join("Alex");
+    alex.teleport(spawn);                               // players rejoin where they left
+    EventRecorder<BlockPlaceEvent> places = recordEvents(BlockPlaceEvent.class);
+    sync(() -> alex.player().getInventory().setItem(0, new ItemStack(Material.DIRT)));
+
+    alex.rightClickBlock(groundNextToAlex, BlockFace.UP);
+
+    assertTrue(places.awaitEvent().isCancelled());
+}
+
+@Test
+void walkingOutOfTheSpawnAreaIsAnnounced() {
+    Bot alex = Bots.join("Alex");
+    alex.teleport(spawn);
+
+    alex.moveTo(spawn.clone().add(20, 0, 0));
+
+    assertEquals(ChatColor.GRAY + "You left the spawn area.", alex.awaitMessage("left the spawn"));
+}
+```
+
+Movement is a straight line at walking speed without pathfinding, so keep the way clear (the test
+world is flat and empty). Use `bot.teleport(...)` rather than `player().teleport(...)`: until the
+client confirms a teleport, the server ignores its clicks and steps.
 
 ### 📺 Titles, boss bars, sidebars and the tab list
 
@@ -636,14 +669,13 @@ resolved. Every release is also attached to [GitHub Releases](https://github.com
 ## 🧭 Limitations & ideas
 
 - **Bots** join, chat, run commands, click inventory GUIs, see titles, boss bars, sidebars and
-  the tab list, and quit. They don't yet move or interact with blocks and entities from the
-  client side — do that through `bot.player()`.
+  the tab list, walk, break and place blocks, and quit. They don't fight, ride or use items in the
+  air yet — do that through `bot.player()`.
 - **Offline mode:** bots join with unsigned chat on servers running `online-mode=false`.
 - **Same plugins everywhere:** other plugins are installed on every server, so pick versions that
   cover your whole range.
 - **Latest builds:** Paper jars (and BuildTools' Spigot) are the latest build of a version at the
   time they're first cached. Delete `~/.gradle/caches/spigot-testing/servers` to refresh.
-- **Ideas:** client-side movement and block interaction.
 
 ## 📄 License
 
