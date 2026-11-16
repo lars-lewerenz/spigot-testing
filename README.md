@@ -198,6 +198,12 @@ Server tests are plain JUnit 5 classes. A few things to know:
 | `serverType()` · `minecraftVersion()` | which server the tests run on (`ServerType.SPIGOT`/`PAPER`, e.g. `"1.8.8"`) |
 | `isMinecraftAtLeast("1.13")` | whether the server runs that version or a newer one |
 
+> [!NOTE]
+> `dispatchCommand` records the replies of plugin commands on every server. Replies of vanilla
+> Minecraft commands (`/gamerule`, `/time`, …) are only recorded on Paper versions that have
+> `Server#createCommandSender`; on Spigot they go to the server log and `messages()` leaves them
+> out. Check the effect instead (the time, the game rule, …).
+
 ### Only on some servers
 
 Some behaviour only exists on some servers. Tests (or whole classes) annotated like this run where
