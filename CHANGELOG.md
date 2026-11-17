@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.0]
 
 ### New
 
@@ -9,6 +9,9 @@
   `serverTest_<name>`, runs as the Spigot or Paper version it is a fork of (for `serverType()`,
   `@EnabledOnServer`, `@EnabledForMinecraftRange` and the server-file layers), and has a server-file
   layer of its own. `-PspigotTesting.customServers` picks them for one run.
+
+Tested on all 36 servers (18 versions, Spigot and Paper), and with WindSpigot 1.8.8 and Purpur 26.3
+as custom servers.
 
 ## [0.8.1]
 

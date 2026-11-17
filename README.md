@@ -93,7 +93,7 @@ running the example plugin's full suite (36 tests):
 // build.gradle.kts
 plugins {
     java
-    id("io.github.lars-lewerenz.spigot-testing") version "0.8.1"
+    id("io.github.lars-lewerenz.spigot-testing") version "0.9.0"
 }
 
 repositories {
