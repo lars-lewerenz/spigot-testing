@@ -1,6 +1,7 @@
 package io.github.larslewerenz.spigottesting.gradle;
 
 import java.time.Duration;
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
@@ -18,6 +19,13 @@ public abstract class SpigotTestingExtension {
      * The latest build of each is downloaded from PaperMC once and cached.
      */
     public abstract ListProperty<String> getPaperVersions();
+
+    /**
+     * Servers from your own jars, e.g. a fork your network runs:
+     * {@code customServers { register("windspigot") { serverJar = file("libs/windspigot.jar"); minecraftVersion = "1.8.8" } }}.
+     * See {@link CustomServer}.
+     */
+    public abstract NamedDomainObjectContainer<CustomServer> getCustomServers();
 
     /**
      * Whether you accept the Minecraft EULA (https://aka.ms/MinecraftEULA), which is required to

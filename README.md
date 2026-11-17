@@ -18,6 +18,7 @@ Your plugin, on real servers, against real players, on every Minecraft version y
 [Fake players](#-fake-players) ·
 [Server files](#%EF%B8%8F-server-files--configs) ·
 [Other plugins](#-other-plugins) ·
+[Own server jars](#-your-own-server-jars) ·
 [Configuration](#%EF%B8%8F-configuration) ·
 [CI](#-ci-on-github-actions) ·
 [How it works](#%EF%B8%8F-how-it-works)
@@ -52,7 +53,7 @@ BUILD SUCCESSFUL in 1m 10s
 
 |   |   |
 |---|---|
-| 🖥️ **Real servers** | Spigot built with BuildTools, Paper downloaded from PaperMC. One Gradle task per server, all running in parallel. |
+| 🖥️ **Real servers** | Spigot built with BuildTools, Paper downloaded from PaperMC, or your own fork's jar. One Gradle task per server, all running in parallel. |
 | 🕰️ **1.8.8 → 26.x** | Every version runs on the Java it needs (8, 17, 21, 25) — picked from the server's metadata and downloaded by Gradle toolchains. |
 | 🤖 **Fake players** | Bots join over the real network protocol, chat, run commands, walk, build, fight and use items — on every version, through ViaProxy. |
 | 🗃️ **Inventory GUIs** | Bots see the menus your plugin opens and click them; you get genuine `InventoryClickEvent`s. |
@@ -585,12 +586,42 @@ String count = sync(() -> PlaceholderAPI.setPlaceholders(alex.player(), "%greete
 > libraries the real plugin bundles and won't load. Compile against the API; install the real
 > plugin from its release download.
 
+## 🧬 Your own server jars
+
+Does your network run a fork — WindSpigot, PandaSpigot, a patched Paper? Test on that very jar too:
+
+```kotlin
+val windspigot by configurations.creating { isTransitive = false }
+
+dependencies {
+    windspigot("com.example:windspigot:1.8.8")                 // or a file, see below
+}
+
+spigotTesting {
+    customServers {
+        register("windspigot") {
+            serverJar.fileProvider(windspigot.elements.map { it.single().asFile }) // or file("libs/windspigot.jar")
+            minecraftVersion = "1.8.8"     // required
+            type = "spigot"                // what it's a fork of: "spigot" (default) or "paper"
+            javaVersion = 17               // default: javaVersions for its Minecraft version, then as for Spigot/Paper
+        }
+    }
+}
+```
+
+`./gradlew serverTest_windspigot` runs the tests on it, and `serverTest` includes it. Inside the server
+it counts as its type and Minecraft version: `serverType()`, `@EnabledOnServer` and
+`@EnabledForMinecraftRange` see `SPIGOT` 1.8.8 here, and the `server/`, `server-spigot/`,
+`server-1.8.8/` and `server-spigot-1.8.8/` files apply, plus `server-windspigot/` for this server only.
+Pick custom servers for one run with `-PspigotTesting.customServers=windspigot` (empty: none).
+
 ## ⚙️ Configuration
 
 ```kotlin
 spigotTesting {
     versions = listOf("1.8.8", "1.21.11")              // Spigot versions
     paperVersions = listOf("26.3")                     // Paper versions
+    customServers.register("fork") { … }               // your own server jars, see above
     pluginUrls.add("https://…/OtherPlugin.jar")        // other plugins for the test servers
     pluginJar = tasks.shadowJar.flatMap { it.archiveFile } // default: the jar task's output
     javaVersions.put("1.8.8", 17)                      // run a server on another Java (default: the oldest LTS it supports)

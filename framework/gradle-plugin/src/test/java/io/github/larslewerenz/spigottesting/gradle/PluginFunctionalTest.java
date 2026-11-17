@@ -59,6 +59,74 @@ class PluginFunctionalTest {
         assertFalse(tasks.contains("serverTest_paper_"), tasks);
     }
 
+    private void addCustomServer(String settings) throws IOException {
+        Files.writeString(project.resolve("build.gradle.kts"), Files.readString(project.resolve("build.gradle.kts")) + """
+                spigotTesting {
+                    customServers {
+                        register("windspigot") {
+                %s
+                        }
+                    }
+                }
+                """.formatted(settings));
+    }
+
+    @Test
+    void customServersGetATaskOfTheirOwnWithoutBuildToolsOrDownload() throws IOException {
+        Files.writeString(project.resolve("windspigot.jar"), "not a real server");
+        addCustomServer("""
+                            serverJar = file("windspigot.jar")
+                            minecraftVersion = "1.8.8"
+                            javaVersion = 17
+                """);
+
+        String tasks = gradle("tasks", "--all").build().getOutput();
+        assertTrue(tasks.contains("serverTest_windspigot - Runs the server tests on windspigot."), tasks);
+        assertFalse(tasks.contains("buildSpigot_windspigot"), tasks);
+
+        String plan = gradle("serverTest", "--dry-run", "-PspigotTesting.acceptEula=true").build().getOutput();
+        assertTrue(plan.contains(":serverTest_windspigot SKIPPED"), "serverTest runs it too:\n" + plan);
+    }
+
+    @Test
+    void customServersCanBeChosenOnTheCommandLine() throws IOException {
+        addCustomServer("""
+                            serverJar = file("windspigot.jar")
+                            minecraftVersion = "1.8.8"
+                """);
+
+        String none = gradle("tasks", "--all", "-PspigotTesting.customServers=").build().getOutput();
+        assertFalse(none.contains("serverTest_windspigot"), none);
+
+        String unknown = gradle("tasks", "--all", "-PspigotTesting.customServers=pandaspigot").buildAndFail().getOutput();
+        assertTrue(unknown.contains("no custom server named \"pandaspigot\" (declared: [windspigot])"), unknown);
+    }
+
+    @Test
+    void customServersNeedAJarAndAMinecraftVersion() throws IOException {
+        addCustomServer("""
+                            minecraftVersion = "1.8.8"
+                """);
+        String noJar = gradle("tasks").buildAndFail().getOutput();
+        assertTrue(noJar.contains("spigotTesting.customServers.windspigot: set serverJar"), noJar);
+
+        setUp();
+        addCustomServer("""
+                            serverJar = file("windspigot.jar")
+                """);
+        String noVersion = gradle("tasks").buildAndFail().getOutput();
+        assertTrue(noVersion.contains("spigotTesting.customServers.windspigot: set minecraftVersion"), noVersion);
+
+        setUp();
+        addCustomServer("""
+                            serverJar = file("windspigot.jar")
+                            minecraftVersion = "1.8.8"
+                            type = "bungeecord"
+                """);
+        String wrongType = gradle("tasks").buildAndFail().getOutput();
+        assertTrue(wrongType.contains("type must be \"spigot\" or \"paper\", not \"bungeecord\""), wrongType);
+    }
+
     @Test
     void eulaCheckFailsWithoutAcceptance() {
         BuildResult result = gradle("checkMinecraftEula").buildAndFail();

@@ -5,10 +5,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
+import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
@@ -112,6 +115,18 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             for (String version : versionsFor(project, "spigotTesting.paperVersions", extension.getPaperVersions().get())) {
                 TaskProvider<ServerTestTask> task = registerVersion(project, extension, harnessJar, otherPlugins,
                         botController, viaProxy, checkEula, ServerType.PAPER, version);
+                allServerTests.configure(t -> t.dependsOn(task));
+            }
+            List<String> customNames = versionsFor(project, "spigotTesting.customServers",
+                    List.copyOf(extension.getCustomServers().getNames()));
+            for (String customName : customNames) {
+                CustomServer server = extension.getCustomServers().findByName(customName);
+                if (server == null) {
+                    throw new GradleException("-PspigotTesting.customServers: no custom server named \"" + customName
+                            + "\" (declared: " + extension.getCustomServers().getNames() + ")");
+                }
+                TaskProvider<ServerTestTask> task = registerCustomServer(project, extension, harnessJar, otherPlugins,
+                        botController, viaProxy, checkEula, server);
                 allServerTests.configure(t -> t.dependsOn(task));
             }
         });
@@ -273,24 +288,76 @@ public abstract class SpigotTestingPlugin implements Plugin<Project> {
             serverJar = build.flatMap(BuildSpigotTask::getServerJar);
         }
 
+        return registerServerTest(project, extension, harnessJar, otherPlugins, botController, viaProxy, checkEula,
+                id, name, dir, type, version, serverJar, serverJarTask, runLauncher, layers(project, type, version));
+    }
+
+    /** A server from the build's own jar ({@link CustomServer}): no BuildTools, no download. */
+    private TaskProvider<ServerTestTask> registerCustomServer(Project project, SpigotTestingExtension extension,
+            TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBundledJar> botController,
+            TaskProvider<DownloadViaProxy> viaProxy, TaskProvider<CheckEula> checkEula, CustomServer server) {
+        String name = server.getName();
+        String setting = "spigotTesting.customServers." + name;
+        if (!server.getServerJar().isPresent()) {
+            throw new GradleException(setting + ": set serverJar, the server jar to run");
+        }
+        String version = server.getMinecraftVersion().getOrNull();
+        if (version == null || version.isEmpty()) {
+            throw new GradleException(setting + ": set minecraftVersion, the Minecraft version the server implements, e.g. \"1.8.8\"");
+        }
+        String typeId = server.getType().getOrElse(ServerType.SPIGOT.id);
+        ServerType type = Arrays.stream(ServerType.values()).filter(t -> t.id.equals(typeId)).findFirst()
+                .orElseThrow(() -> new GradleException(setting + ": type must be \"spigot\" or \"paper\", not \"" + typeId + "\""));
+
+        Provider<Integer> requiredJava = extension.getCacheDirectory().map(cacheDir -> type == ServerType.PAPER
+                ? PaperVersions.requiredJava(version, cacheDir.getAsFile())
+                : SpigotVersions.requiredJava(version, cacheDir.getAsFile()));
+        Provider<JavaLauncher> runLauncher = server.getJavaVersion()
+                .orElse(extension.getJavaVersions().getting(version))
+                .orElse(requiredJava)
+                .flatMap(this::launcherFor);
+
+        List<Directory> layers = new ArrayList<>(layers(project, type, version));
+        layers.add(serverTestSources(project).dir("server-" + name));
+        return registerServerTest(project, extension, harnessJar, otherPlugins, botController, viaProxy, checkEula,
+                name.replaceAll("[^A-Za-z0-9]", "_"), name, name, type, version, server.getServerJar(), null,
+                runLauncher, layers);
+    }
+
+    private static Directory serverTestSources(Project project) {
+        return project.getLayout().getProjectDirectory().dir("src/" + SOURCE_SET_NAME);
+    }
+
+    /** Server files for every server, then for the type, the version, and type and version; later wins. */
+    private static List<Directory> layers(Project project, ServerType type, String version) {
+        Directory sources = serverTestSources(project);
+        return List.of(
+                sources.dir("server"),
+                sources.dir("server-" + type.id),
+                sources.dir("server-" + version),
+                sources.dir("server-" + type.id + "-" + version));
+    }
+
+    private TaskProvider<ServerTestTask> registerServerTest(Project project, SpigotTestingExtension extension,
+            TaskProvider<Jar> harnessJar, FileCollection otherPlugins, TaskProvider<ExtractBundledJar> botController,
+            TaskProvider<DownloadViaProxy> viaProxy, TaskProvider<CheckEula> checkEula, String id, String name, String dir,
+            ServerType type, String version, Provider<RegularFile> serverJar, TaskProvider<? extends Task> serverJarTask,
+            Provider<JavaLauncher> runLauncher, List<Directory> layers) {
         return project.getTasks().register("serverTest_" + id, ServerTestTask.class, task -> {
             task.setGroup(GROUP);
             task.setDescription("Runs the server tests on " + name + ".");
             // The server jar and ViaProxy live in the shared cache, not in task outputs, so the
             // tasks that put them there are explicit dependencies.
-            task.dependsOn(checkEula, serverJarTask, viaProxy);
+            task.dependsOn(checkEula, viaProxy);
+            if (serverJarTask != null) {
+                task.dependsOn(serverJarTask);
+            }
             task.getMinecraftVersion().set(version);
             task.getServerName().set(name);
             task.getServerJar().set(serverJar);
             task.getPluginJar().set(extension.getPluginJar());
             task.getHarnessJar().set(harnessJar.flatMap(Jar::getArchiveFile));
             task.getOtherPlugins().from(otherPlugins);
-            Directory sources = project.getLayout().getProjectDirectory().dir("src/" + SOURCE_SET_NAME);
-            List<Directory> layers = List.of(
-                    sources.dir("server"),
-                    sources.dir("server-" + type.id),
-                    sources.dir("server-" + version),
-                    sources.dir("server-" + type.id + "-" + version));
             task.getServerFileLayers().set(layers);
             task.getServerFiles().from(layers);
             task.getServerType().set(type.id);

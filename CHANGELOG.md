@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### New
+
+- **Your own server jars:** `spigotTesting.customServers` runs the tests on a server jar you provide,
+  such as a fork your network runs (WindSpigot, a patched Paper). Each one gets a task
+  `serverTest_<name>`, runs as the Spigot or Paper version it is a fork of (for `serverType()`,
+  `@EnabledOnServer`, `@EnabledForMinecraftRange` and the server-file layers), and has a server-file
+  layer of its own. `-PspigotTesting.customServers` picks them for one run.
+
 ## [0.8.1]
 
 ### Fixes
